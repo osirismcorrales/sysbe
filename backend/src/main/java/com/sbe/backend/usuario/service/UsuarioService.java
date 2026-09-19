@@ -2,31 +2,78 @@ package com.sbe.backend.usuario.service;
 
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
+import com.sbe.backend.usuario.entity.Usuario;
+import com.sbe.backend.usuario.mapper.UsuarioMapper;
+import com.sbe.backend.usuario.repository.UsuarioRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.NoSuchElementException;
 
-/**
- * Interfaz del servicio de Usuario.
- *
- * CONVENCIONES:
- *  - Definir la interfaz aqui y la implementacion en UsuarioServiceImpl
- *  - Esto permite mockear facilmente en tests y desacoplar capas
- *  - El Controller solo conoce esta interfaz, nunca la implementacion
- */
-public interface UsuarioService {
+import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
+import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.ACTIVO;
+import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
 
-    /** Retorna todos los usuarios activos */
-    List<UsuarioResponseDto> listarTodos();
+@Service
+@RequiredArgsConstructor
 
-    /** Busca un usuario por su ID. Lanza excepcion si no existe. */
-    UsuarioResponseDto buscarPorId(Long id);
+public class UsuarioService {
+    private final UsuarioRepository usuarioRepository;
+    private final UsuarioMapper usuarioMapper;
+    private final PasswordEncoder passwordEncoder;
 
-    /** Crea un nuevo usuario. Valida que el email no este en uso. */
-    UsuarioResponseDto crear(UsuarioRequestDto dto);
+    @Transactional(readOnly = true)
+    public List<UsuarioResponseDto> listarTodos() {
+        return usuarioRepository.findByEstado(ACTIVO)
+                .stream()
+                .map(usuarioMapper::toResponseDto)
+                .toList();
+    }
 
-    /** Actualiza los datos de un usuario existente. */
-    UsuarioResponseDto actualizar(Long id, UsuarioRequestDto dto);
+    @Transactional(readOnly = true)
+    public UsuarioResponseDto buscarPorId(Long id) {
+        Usuario usuario = findOrThrow(id);
+        return usuarioMapper.toResponseDto(usuario);
+    }
 
-    /** Baja logica: marca el usuario como inactivo sin eliminarlo de la DB. */
-    void desactivar(Long id);
+    @Transactional
+    public UsuarioResponseDto crear(UsuarioRequestDto dto) {
+        if (usuarioRepository.existsByEmail(dto.email())) {
+            throw new IllegalArgumentException("Ya existe un usuario con el email: " + dto.email());
+        }
+
+        Usuario usuario = usuarioMapper.toEntity(dto);
+        usuario.setPasswordHash(passwordEncoder.encode(dto.passwordHash()));
+
+        Usuario guardado = usuarioRepository.save(usuario);
+        return usuarioMapper.toResponseDto(guardado);
+    }
+
+    @Transactional
+    public UsuarioResponseDto actualizar(Long id, UsuarioRequestDto dto) {
+        Usuario usuario = findOrThrow(id);
+
+        usuario.setNombreCompleto(dto.nombreCompleto());
+        usuario.setRol(dto.rol());
+
+        if (dto.passwordHash() != null && !dto.passwordHash().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(dto.passwordHash()));
+        }
+
+        return usuarioMapper.toResponseDto(usuario);
+    }
+
+    @Transactional
+    public void desactivar(Long id) {
+        Usuario usuario = findOrThrow(id);
+        usuario.setEstado(DE_BAJA);
+    }
+
+    private Usuario findOrThrow(Long id) {
+        return usuarioRepository.findById(id)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con id: " + id));
+    }
 }

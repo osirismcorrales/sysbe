@@ -1,20 +1,20 @@
 package com.sbe.backend.usuario.dto;
 
-import com.sbe.backend.usuario.entity.RolUsuario;
+import com.sbe.backend.usuario.entity.Categoria;
+import com.sbe.backend.usuario.entity.Rol;
+import com.sbe.backend.usuario.entity.Usuario;
 
-/**
- * DTO de RESPONSE para devolver datos de un Usuario al cliente.
- *
- * CONVENCIONES:
- *  - NUNCA incluir la password ni datos sensibles en el Response DTO
- *  - Solo exponer los campos que el frontend necesita
- *  - Los records son perfectos para responses: inmutables y concisos
- */
-public record UsuarioResponseDto(
-        Long id,
-        String nombre,
-        String apellido,
-        String email,
-        RolUsuario rol,
-        boolean activo
-) {}
+import java.time.LocalDateTime;
+
+public record UsuarioResponseDto(Long id,
+                                 String dni,
+                                 String nombreCompleto,
+                                 String email,
+                                 LocalDateTime fechaNacimiento,
+                                 Integer puntosAc,
+                                 Usuario.EstadoUsuario estado,
+                                 String domicilio,
+                                 Rol rol,
+                                 Categoria categoria
+                                      ) {
+}

@@ -2,16 +2,9 @@ package com.sbe.backend.usuario.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDateTime;
+import jakarta.persistence.Column;
 
-/**
- * Entidad JPA que representa a un Usuario del sistema.
- *
- * CONVENCIONES:
- *  - Siempre anotar con @Entity y @Table(name = "nombre_tabla")
- *  - Usar @Id + @GeneratedValue para la PK
- *  - No exponer la entidad directamente en la API → usar DTOs
- *  - Lombok: @Getter/@Setter en vez de @Data para evitar problemas con JPA
- */
 @Entity
 @Table(name = "usuarios")
 @Getter
@@ -19,37 +12,49 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Usuario {
 
+public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
 
-    /** Email unico, se usa como nombre de usuario para login */
-    @Column(nullable = false, unique = true, length = 150)
+    @Column(name = "id_usuario")
+    private Long idUsuario;
+
+    @Column(name = "dni", nullable = false, unique = true, length = 8)
+    private String dni;
+
+    @Column(name = "nombre_completo", nullable = false, length = 100)
+    private String nombreCompleto;
+
+    @Column(name = "email", nullable = false, unique = true, length = 120)
     private String email;
 
-    /** Password hasheado (bcrypt). NUNCA guardar en texto plano. */
-    @Column(nullable = false)
-    private String password;
+    @Column(name = "fecha_nacimiento", nullable = false)
+    private LocalDateTime fechaNacimiento;
 
-    @Column(nullable = false, length = 80)
-    private String nombre;
+    @Column(name = "puntos_ac", nullable = false)
+    private Integer puntosAc;
 
-    @Column(nullable = false, length = 80)
-    private String apellido;
-
-    /**
-     * Rol del usuario en el sistema.
-     * Usamos @Enumerated(STRING) para guardar el nombre del enum como texto en la DB,
-     * lo cual es mas legible y resistente a cambios de orden.
-     */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private RolUsuario rol;
+    @Column(name = "estado", nullable = false, length = 20)
+    private EstadoUsuario estado;
 
-    /** Si el usuario esta activo o fue dado de baja logica */
-    @Column(nullable = false)
-    @Builder.Default
-    private boolean activo = true;
+    @Column(name = "domicilio", nullable = false, length = 100)
+    private String domicilio;
+
+    @Column(name = "password_hash", nullable = false, length = 255)
+    private String passwordHash;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_rol", nullable = false)
+    private Rol rol;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_categoria", nullable = false)
+    private Categoria categoria;
+
+    public enum EstadoUsuario {
+        ACTIVO,
+        DE_BAJA
+    }
 }

@@ -1,41 +1,45 @@
 package com.sbe.backend.usuario.dto;
 
-import com.sbe.backend.usuario.entity.RolUsuario;
-import jakarta.validation.constraints.Email;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
+import com.sbe.backend.usuario.entity.Categoria;
+import com.sbe.backend.usuario.entity.Rol;
+import com.sbe.backend.usuario.entity.Usuario.EstadoUsuario;
+import jakarta.validation.constraints.*;
 
-/**
- * DTO de REQUEST para crear o actualizar un Usuario.
- *
- * CONVENCIONES:
- *  - Los DTOs van en el paquete 'dto' de cada feature
- *  - Usar Bean Validation (@NotBlank, @Email, etc.) en los campos de request
- *  - Separar DTO de Request y Response (no mezclar)
- *  - Usar 'record' de Java 16+ para DTOs inmutables → menos boilerplate
- *
- * Por que record y no class?
- *  - Inmutable por defecto (campos final)
- *  - Constructor, getters, equals, hashCode y toString generados automaticamente
- *  - Ideal para DTOs que solo transportan datos
- */
-public record UsuarioRequestDto(
+import java.time.LocalDateTime;
 
-        @NotBlank(message = "El nombre no puede estar vacio")
-        String nombre,
+public record UsuarioRequestDto(@NotBlank(message = "El DNI no puede estar vacío.")
+                                     @Size(min = 7, message = "El DNI debe ser como mínimo de 7 números.")
+                                     @Size(max = 8, message = "El DNI debe tener como máximo 8 dígitos.") String dni,
 
-        @NotBlank(message = "El apellido no puede estar vacio")
-        String apellido,
+                                @NotBlank(message = "El nombre no puede estar vacío")
+                                     String nombreCompleto,
 
-        @NotBlank(message = "El email no puede estar vacio")
-        @Email(message = "El email no tiene un formato valido")
-        String email,
 
-        @NotBlank(message = "La password no puede estar vacia")
-        @Size(min = 8, message = "La password debe tener al menos 8 caracteres")
-        String password,
+                                @NotBlank(message = "El email no puede estar vacio")
+                                     @Email(message = "El email no tiene un formato valido")
+                                     String email,
 
-        @NotNull(message = "El rol no puede ser nulo")
-        RolUsuario rol
-) {}
+                                @NotNull(message = "La fecha de nacimiento no puede ser vacía.")
+                                     @PastOrPresent(message = "La fecha de nacimiento no puede ser una fecha futura.")
+                                     LocalDateTime fechaNacimiento,
+
+                                @NotNull(message = "La cantidad de puntos no puede ser nula.")
+                                     @PositiveOrZero(message = "La cantidad de puntos no puede ser menor a 0.")
+                                     Integer puntosAc,
+
+                                @NotNull(message = "El estado no puede ser nulo.")
+                                     EstadoUsuario estado,
+
+                                String domicilio,
+
+                                @NotBlank(message = "La contraseña no puede estar vacía")
+                                     @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
+                                     String passwordHash,
+
+
+                                @NotNull(message = "El rol no puede ser nulo")
+                                     Rol rol,
+
+                                @NotNull(message = "La categoría no puede ser nula.")
+                                     Categoria categoria) {
+}

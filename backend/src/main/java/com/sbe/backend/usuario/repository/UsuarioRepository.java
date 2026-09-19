@@ -44,5 +44,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     /**
      * Retorna todos los usuarios activos.
      */
-    List<Usuario> findByActivoTrue();
+    List<Usuario> findByEstado(Usuario.EstadoUsuario estadoUsuario);
+
+
 }
