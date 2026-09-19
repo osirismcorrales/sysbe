@@ -1,6 +1,6 @@
 package com.sbe.backend.usuario.repository;
 
-import com.sbe.backend.usuario.entity.RolUsuario;
+import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
 
@@ -39,7 +39,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     /**
      * Retorna todos los usuarios con un rol especifico.
      */
-    List<Usuario> findByRol(RolUsuario rol);
+    List<Usuario> findByRol(Usuario rol);
 
     /**
      * Retorna todos los usuarios activos.

@@ -5,8 +5,6 @@ import lombok.*;
 import java.math.BigDecimal;
 import jakarta.persistence.Column;
 
-import java.text.DecimalFormat;
-
 @Entity
 @Table(name = "categoria")
 @Getter
@@ -26,7 +24,7 @@ public class Categoria {
     private String tipoSocio;
 
     @Column(name = "vinculo_unse", nullable = false, length = 30)
-    private String vinculoU;
+    private String vinculoUnse;
 
     @Column(name = "descuento_porcentaje", nullable = false, precision = 5, scale = 2)
     private BigDecimal descuento;

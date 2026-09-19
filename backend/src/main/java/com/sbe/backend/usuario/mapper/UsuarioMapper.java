@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class UsuarioMapper {
 
-    public Usuario toEntity(UsuarioRequestDto dto){
+
+    public Usuario toEntity(UsuarioRequestDto dto) {
         return Usuario.builder()
                 .dni(dto.dni())
                 .nombreCompleto(dto.nombreCompleto())
@@ -17,8 +18,6 @@ public class UsuarioMapper {
                 .puntosAc(dto.puntosAc())
                 .estado(dto.estado())
                 .domicilio(dto.domicilio())
-                .rol(dto.rol())
-                .categoria(dto.categoria())
                 .build();
     }
 

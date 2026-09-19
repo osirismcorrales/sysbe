@@ -37,9 +37,11 @@ public record UsuarioRequestDto(@NotBlank(message = "El DNI no puede estar vací
                                      String passwordHash,
 
 
+
                                 @NotNull(message = "El rol no puede ser nulo")
-                                     Rol rol,
+                                Integer rolId,
 
                                 @NotNull(message = "La categoría no puede ser nula.")
-                                     Categoria categoria) {
+                                Integer categoriaId)
+{
 }
