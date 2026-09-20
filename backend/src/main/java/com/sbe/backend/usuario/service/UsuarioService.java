@@ -19,7 +19,6 @@ import java.util.NoSuchElementException;
 
 import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
 import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.ACTIVO;
-import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
 
 @Service
 @RequiredArgsConstructor

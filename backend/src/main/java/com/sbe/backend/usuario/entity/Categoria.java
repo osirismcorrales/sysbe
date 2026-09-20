@@ -20,10 +20,12 @@ public class Categoria {
     @Column(name = "id_categoria")
     private Integer idCategoria;
 
+    // Ejemplos: "SOCIO_INTERNO", "SOCIO_EXTERNO", "NO_SOCIO"
     @Column(name = "tipo_socio", nullable = false, length = 30)
     private String tipoSocio;
 
-    @Column(name = "vinculo_unse", nullable = false, length = 30)
+    // ALUMNO, DOCENTE, NODOCENTE. Debe permitir null para externos y no socios
+    @Column(name = "vinculo_unse", nullable = true, length = 30)
     private String vinculoUnse;
 
     @Column(name = "descuento_porcentaje", nullable = false, precision = 5, scale = 2)
@@ -33,7 +35,7 @@ public class Categoria {
     private BigDecimal cuotaMensual;
 
     @Column(name = "cuota_trimestral", nullable = false, precision = 10, scale = 2)
-    private BigDecimal cuotaTrimenstral;
+    private BigDecimal cuotaTrimestral;
 
     @Column(name = "cuota_anual", nullable = false, precision = 10, scale = 2)
     private BigDecimal cuotaAnual;

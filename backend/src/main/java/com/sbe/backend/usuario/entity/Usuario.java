@@ -33,7 +33,8 @@ public class Usuario {
     private LocalDateTime fechaNacimiento;
 
     @Column(name = "puntos_ac", nullable = false)
-    private Integer puntosAc;
+    @Builder.Default
+    private Integer puntosAc = 0;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false, length = 20)

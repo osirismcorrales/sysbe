@@ -51,7 +51,7 @@ public class DataInitializer implements CommandLineRunner {
             c.setVinculoUnse(vinculoUnse);
             c.setDescuento(descuento);
             c.setCuotaMensual(mensual);
-            c.setCuotaTrimenstral(trimestral);
+            c.setCuotaTrimestral(trimestral);
             c.setCuotaAnual(anual);
             categoriaRepository.save(c);
         }

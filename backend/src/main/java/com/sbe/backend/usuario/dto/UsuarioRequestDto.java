@@ -23,10 +23,6 @@ public record UsuarioRequestDto(@NotBlank(message = "El DNI no puede estar vací
                                      @PastOrPresent(message = "La fecha de nacimiento no puede ser una fecha futura.")
                                      LocalDateTime fechaNacimiento,
 
-                                @NotNull(message = "La cantidad de puntos no puede ser nula.")
-                                     @PositiveOrZero(message = "La cantidad de puntos no puede ser menor a 0.")
-                                     Integer puntosAc,
-
                                 @NotNull(message = "El estado no puede ser nulo.")
                                      EstadoUsuario estado,
 
@@ -35,7 +31,6 @@ public record UsuarioRequestDto(@NotBlank(message = "El DNI no puede estar vací
                                 @NotBlank(message = "La contraseña no puede estar vacía")
                                      @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
                                      String passwordHash,
-
 
 
                                 @NotNull(message = "El rol no puede ser nulo")

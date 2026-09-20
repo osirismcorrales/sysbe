@@ -3,6 +3,7 @@ package com.sbe.backend.usuario.repository;
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -39,12 +40,20 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     /**
      * Retorna todos los usuarios con un rol especifico.
      */
-    List<Usuario> findByRol(Usuario rol);
+    List<Usuario> findByRol(Rol rol);
 
     /**
      * Retorna todos los usuarios activos.
      */
     List<Usuario> findByEstado(Usuario.EstadoUsuario estadoUsuario);
 
+    // Agregar esta línea:
+    Optional<Usuario> findByDni(String dni);
+
+    // Opcional pero muy útil para validar duplicados antes de guardar:
+    boolean existsByDni(String dni);
+
+    @Query("SELECT u FROM Usuario u WHERE u.estado = 'ACTIVO' AND u.categoria.tipoSocio <> 'NO_SOCIO'")
+    List<Usuario> listarSoloSocios();
 
 }

@@ -12,4 +12,7 @@ public interface CategoriaRepository extends JpaRepository<Categoria, Integer> {
     boolean existsByTipoSocioAndVinculoUnse(String tipoSocio, String vinculoUnse);
 
     Optional<Categoria> findByTipoSocioAndVinculoUnse(String tipoSocio, String vinculoUnse);
+
+    // 2. Para particulares/externos que no tienen vínculo UNSE (ej: "SOCIO_EXTERNO" o "NO_SOCIO")
+    Optional<Categoria> findByTipoSocio(String tipoSocio);
 }
