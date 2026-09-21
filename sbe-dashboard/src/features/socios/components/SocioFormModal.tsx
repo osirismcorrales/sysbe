@@ -8,22 +8,7 @@ import { FechaInput } from '../../../components/ui/FechaInput';
 import { useData, type Socio } from '../../../context/DataContext';
 import { getCategorias, type CategoriaResponseDto } from '../services/sociosApi';
 
-const socioSchema = z.object({
-  dni: z.string()
-    .min(7, 'El DNI debe tener al menos 7 dígitos')
-    .max(9, 'El DNI debe tener máximo 9 dígitos')
-    .regex(/^\d+$/, 'El DNI debe contener solo números'),
-  nombre: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
-  email: z.string().email('Debe ser un correo electrónico válido'),
-  fechaNacimiento: z.string()
-    .min(1, 'La fecha de nacimiento es requerida')
-    .refine((val) => val.length >= 10, { message: 'Complete la fecha (DD/MM/AAAA)' }),
-  domicilio: z.string().min(5, 'El domicilio debe tener al menos 5 caracteres'),
-  categoria: z.string().min(1, 'La categoría es requerida'),
-  vinculo: z.string().optional()
-});
-
-type SocioFormValues = z.infer<typeof socioSchema>;
+import { socioSchema, type SocioFormValues } from '../schemas/socioSchemas';
 
 interface SocioFormModalProps {
   open: boolean;

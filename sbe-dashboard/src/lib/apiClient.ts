@@ -14,14 +14,38 @@ const API_BASE_URL = 'http://localhost:8080/api';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
+export interface BackendErrorResponse {
+  timestamp?: string;
+  status: number;
+  error?: string;
+  mensaje: string;
+  path?: string;
+  campos?: Record<string, string>;
+}
+
 export class ApiError extends Error {
+  status: number;
+  statusText: string;
+  body: string;
+  backendError?: BackendErrorResponse;
+  campos?: Record<string, string>;
+  mensaje: string;
+
   constructor(
-    public status: number,
-    public statusText: string,
-    public body: string
+    status: number,
+    statusText: string,
+    body: string,
+    backendError?: BackendErrorResponse
   ) {
-    super(`[${status}] ${body || statusText}`);
+    const mensaje = backendError?.mensaje || body || statusText;
+    super(`[${status}] ${mensaje}`);
     this.name = 'ApiError';
+    this.status = status;
+    this.statusText = statusText;
+    this.body = body;
+    this.backendError = backendError;
+    this.campos = backendError?.campos;
+    this.mensaje = mensaje;
   }
 }
 
@@ -34,8 +58,14 @@ interface RequestOptions {
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    const body = await res.text().catch(() => res.statusText);
-    throw new ApiError(res.status, res.statusText, body);
+    const textBody = await res.text().catch(() => res.statusText);
+    let backendError: BackendErrorResponse | undefined;
+    try {
+      backendError = JSON.parse(textBody) as BackendErrorResponse;
+    } catch {
+      // Body no era JSON
+    }
+    throw new ApiError(res.status, res.statusText, textBody, backendError);
   }
   // 204 No Content
   if (res.status === 204) return null as unknown as T;

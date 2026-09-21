@@ -1,17 +1,23 @@
 /**
  * ReservaFormDialog.tsx
  * Modal para crear una nueva reserva o reprogramar una existente.
+ * Implementado con React Hook Form + Zod siguiendo ReservaRequestDto y ReprogramarReservaRequestDto.
  *
- * - Fecha: calendario nativo con restricción de 48 horas hábiles mínimas.
- * - Horarios: selector conectado EXCLUSIVAMENTE a la API de disponibilidad en tiempo real (/api/plantillas-horario/disponibilidad).
- *   Sin datos simulados ni mock data.
+ * - Fecha: DatePickerCalendar con restricción de 48 horas corridas.
+ * - Horarios: selector conectado a la API de disponibilidad en tiempo real (/api/plantillas-horario/disponibilidad).
+ * - Validaciones: esquema Zod con mensajes amigables y componentes <FieldError />.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/Dialog';
 import { Button } from '../../../components/ui/Button';
 import { DatePickerCalendar } from '../../../components/ui/DatePickerCalendar';
+import { FieldError } from '../../../components/ui/FieldError';
 import { CalendarDays, Loader2, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { cn } from '../../../lib/utils';
+import { handleApiFormError } from '../../../lib/handleApiFormError';
 import type { ReservaResponseDto, ReservaRequestDto, ReprogramarReservaRequestDto } from '../services/reservasApi';
 import type { UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
 import type { InstalacionResponseDto } from '../../instalaciones/services/instalacionesApi';
@@ -24,6 +30,12 @@ import {
   type PlantillaHorarioResponseDto,
   type BloqueDto,
 } from '../../instalaciones/services/plantillasHorarioApi';
+import {
+  reservaRequestSchema,
+  reprogramarReservaSchema,
+  calcMax2Months,
+  type ReservaRequestFormValues,
+} from '../schemas/reservaSchemas';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -40,11 +52,25 @@ interface ReservaFormDialogProps {
 
 // ─── Estilos comunes ────────────────────────────────────────────────────────
 
-const inputClassName =
-  'h-9 px-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs transition-colors bg-white';
+function inputClass(error?: boolean, extra?: string) {
+  return cn(
+    'h-9 px-3 w-full border rounded-lg focus:outline-none focus:ring-2 text-xs transition-colors bg-white',
+    extra,
+    error
+      ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+      : 'border-gray-300 focus:ring-primary/20 focus:border-primary'
+  );
+}
 
-const selectClassName =
-  'h-9 px-3 w-full border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs transition-colors bg-white cursor-pointer appearance-none disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed';
+function selectClass(error?: boolean, extra?: string) {
+  return cn(
+    'h-9 px-3 w-full border rounded-lg focus:outline-none focus:ring-2 text-xs transition-colors bg-white cursor-pointer appearance-none disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed',
+    extra,
+    error
+      ? 'border-red-500 focus:border-red-500 focus:ring-red-200'
+      : 'border-gray-300 focus:ring-primary/20 focus:border-primary'
+  );
+}
 
 const labelClassName = 'block text-xs font-semibold text-gray-700 mb-1';
 
@@ -67,10 +93,8 @@ function dateToLocalISO(date: Date): string {
 
 /**
  * Determina si un bloque horario queda dentro de las 48h de anticipación.
- * Solo aplica cuando la fecha seleccionada coincide con el día límite.
  */
 function isBloqueWithin48h(fechaReserva: string, horaInicio: string, min48h: Date): boolean {
-  // Construir el timestamp del inicio del bloque
   const [h, m] = horaInicio.split(':').map(Number);
   const [y, mo, d] = fechaReserva.split('-').map(Number);
   const bloqueDate = new Date(y, mo - 1, d, h, m, 0);
@@ -89,13 +113,35 @@ export function ReservaFormDialog({
   onCrear,
   onReprogramar,
 }: ReservaFormDialogProps) {
-  const [fechaReserva, setFechaReserva] = useState('');
-  const [horarioInicio, setHorarioInicio] = useState('');
-  const [horarioFin, setHorarioFin] = useState('');
-  const [idUsuario, setIdUsuario] = useState<number>(0);
-  const [idInstalacion, setIdInstalacion] = useState<number>(0);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Hook Form configurado con el esquema Zod respectivo según el modo
+  const currentSchema = mode === 'crear' ? reservaRequestSchema : reprogramarReservaSchema;
+  const {
+    register,
+    handleSubmit,
+    control,
+    setValue,
+    setError,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<ReservaRequestFormValues>({
+    resolver: zodResolver(currentSchema) as any,
+    defaultValues: {
+      fechaReserva: '',
+      horarioInicio: '',
+      horarioFin: '',
+      idUsuario: 0,
+      idInstalacion: 0,
+    },
+  });
+
+  const fechaReserva = watch('fechaReserva');
+  const horarioInicio = watch('horarioInicio');
+  const horarioFin = watch('horarioFin');
+  const idInstalacion = mode === 'crear' ? (watch('idInstalacion') || 0) : (reserva?.idInstalacion ?? 0);
 
   // Plantillas de horario de la instalación
   const [plantillasInstalacion, setPlantillasInstalacion] = useState<PlantillaHorarioResponseDto[]>([]);
@@ -138,8 +184,8 @@ export function ReservaFormDialog({
 
     let cancelled = false;
     setLoadingBloques(true);
-    setHorarioInicio('');
-    setHorarioFin('');
+    setValue('horarioInicio', '');
+    setValue('horarioFin', '');
 
     consultarDisponibilidad(idInstalacion, fechaReserva)
       .then((data) => {
@@ -155,11 +201,11 @@ export function ReservaFormDialog({
     return () => {
       cancelled = true;
     };
-  }, [idInstalacion, fechaReserva]);
+  }, [idInstalacion, fechaReserva, setValue]);
 
   // Duración requerida por la instalación
   const selectedInstalacion = useMemo(() => {
-    return instalaciones.find((i) => i.id === idInstalacion);
+    return instalaciones.find((i) => i.id === Number(idInstalacion));
   }, [instalaciones, idInstalacion]);
 
   const duracionMinutos = selectedInstalacion?.duracionMinutos ?? 60;
@@ -167,6 +213,21 @@ export function ReservaFormDialog({
   // Umbral exacto: ahora + 48 horas corridas
   const min48h = useMemo(() => calcMin48h(), []);
   const minDate = useMemo(() => dateToLocalISO(min48h), [min48h]);
+
+  // Límite máximo: hoy + 2 meses
+  const max2Months = useMemo(() => calcMax2Months(), []);
+  const maxDate = useMemo(() => dateToLocalISO(max2Months), [max2Months]);
+
+  // Fechas formateadas para mostrar al usuario (DD/MM/YYYY)
+  const minDateDisplay = useMemo(() => {
+    const [y, m, d] = minDate.split('-');
+    return `${d}/${m}/${y}`;
+  }, [minDate]);
+
+  const maxDateDisplay = useMemo(() => {
+    const [y, m, d] = maxDate.split('-');
+    return `${d}/${m}/${y}`;
+  }, [maxDate]);
 
   // Determinar día de la semana y plantilla para la fecha elegida
   const diaSemanaSeleccionado = useMemo(() => {
@@ -185,7 +246,6 @@ export function ReservaFormDialog({
   }, [loadingPlantillas, fechaReserva, plantillasInstalacion, plantillasDelDia]);
 
   // Días de la semana deshabilitados (sin plantilla configurada para la instalación)
-  // 0=Domingo, 1=Lunes, ..., 6=Sábado
   const disabledDaysOfWeek = useMemo(() => {
     if (plantillasInstalacion.length === 0) return [];
     const DIA_TO_JS_INDEX: Record<string, number> = {
@@ -198,67 +258,69 @@ export function ReservaFormDialog({
     return [0, 1, 2, 3, 4, 5, 6].filter((d) => !diasConPlantilla.has(d));
   }, [plantillasInstalacion]);
 
-  // Reset al abrir
+  // Reset y precarga de formulario al abrir
   useEffect(() => {
     if (open) {
       setFormError(null);
       if (mode === 'reprogramar' && reserva) {
-        setFechaReserva(reserva.fechaReserva);
-        setHorarioInicio(reserva.horarioInicio.substring(0, 5));
-        setHorarioFin(reserva.horarioFin.substring(0, 5));
-        setIdUsuario(reserva.idUsuario);
-        setIdInstalacion(reserva.idInstalacion);
+        reset({
+          fechaReserva: reserva.fechaReserva,
+          horarioInicio: reserva.horarioInicio.substring(0, 5),
+          horarioFin: reserva.horarioFin.substring(0, 5),
+          idUsuario: reserva.idUsuario,
+          idInstalacion: reserva.idInstalacion,
+        });
       } else {
-        setFechaReserva('');
-        setHorarioInicio('');
-        setHorarioFin('');
-        setIdUsuario(usuarios[0]?.id ?? 0);
-        setIdInstalacion(instalaciones[0]?.id ?? 0);
+        reset({
+          fechaReserva: '',
+          horarioInicio: '',
+          horarioFin: '',
+          idUsuario: usuarios[0]?.id ?? 0,
+          idInstalacion: instalaciones[0]?.id ?? 0,
+        });
       }
     }
-  }, [open, mode, reserva, usuarios, instalaciones]);
+  }, [open, mode, reserva, usuarios, instalaciones, reset]);
 
   // Al seleccionar turno desde los bloques devueltos por la API
   const handleBloqueSelect = (inicio: string) => {
-    setHorarioInicio(inicio);
+    setValue('horarioInicio', inicio, { shouldValidate: true });
     if (!inicio) {
-      setHorarioFin('');
+      setValue('horarioFin', '', { shouldValidate: true });
       return;
     }
 
-    // Buscar el bloque correspondiente obtenido de la API
     const match = bloques.find((b) => formatHora(b.horaInicio) === inicio);
     if (match) {
-      setHorarioFin(formatHora(match.horaFin));
+      setValue('horarioFin', formatHora(match.horaFin), { shouldValidate: true });
     } else {
-      setHorarioFin('');
+      setValue('horarioFin', '', { shouldValidate: true });
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const onSubmitValid = async (data: ReservaRequestFormValues) => {
     setFormError(null);
 
-    // Validaciones
-    if (!fechaReserva) {
-      setFormError('Selecciona una fecha para la reserva.');
+    // Validar anticipación de 48h
+    if (data.fechaReserva < minDate) {
+      setFormError('La reserva debe realizarse con al menos 48 horas de anticipación.');
       return;
     }
-    if (fechaReserva < minDate) {
-      setFormError('La reserva debe realizarse con al menos 48 horas hábiles de anticipación.');
+
+    // Validar límite máximo de 2 meses
+    if (data.fechaReserva > maxDate) {
+      setFormError(`La reserva no puede realizarse con más de 2 meses de anticipación (máximo ${maxDateDisplay}).`);
       return;
     }
+
     if (esDiaCerrado && diaSemanaSeleccionado) {
       setFormError(
         `La instalación está cerrada los días ${DIA_SEMANA_TO_LABEL[diaSemanaSeleccionado]}. Por favor elige otra fecha.`
       );
       return;
     }
-    if (!horarioInicio || !horarioFin) {
-      setFormError('Selecciona un turno de la lista de horarios disponibles.');
-      return;
-    }
-    if (horarioInicio >= horarioFin) {
+
+    if (data.horarioInicio >= data.horarioFin) {
       setFormError('El horario de inicio debe ser anterior al de fin.');
       return;
     }
@@ -267,37 +329,28 @@ export function ReservaFormDialog({
     try {
       if (mode === 'reprogramar' && reserva) {
         await onReprogramar(reserva.idReserva, {
-          fechaReserva,
-          horarioInicio,
-          horarioFin,
+          fechaReserva: data.fechaReserva,
+          horarioInicio: data.horarioInicio,
+          horarioFin: data.horarioFin,
         });
       } else {
-        if (!idUsuario || !idInstalacion) {
-          setFormError('Selecciona un usuario y una instalación.');
-          setSaving(false);
-          return;
-        }
         await onCrear({
-          fechaReserva,
-          horarioInicio,
-          horarioFin,
-          idUsuario,
-          idInstalacion,
+          fechaReserva: data.fechaReserva,
+          horarioInicio: data.horarioInicio,
+          horarioFin: data.horarioFin,
+          idUsuario: Number(data.idUsuario),
+          idInstalacion: Number(data.idInstalacion),
         });
       }
       onOpenChange(false);
     } catch (err) {
+      handleApiFormError(err, setError as any);
       setFormError((err as Error).message || 'Error al guardar la reserva.');
     } finally {
       setSaving(false);
     }
   };
 
-  // Formatear la fecha mínima para mostrar al usuario
-  const minDateDisplay = useMemo(() => {
-    const [y, m, d] = minDate.split('-');
-    return `${d}/${m}/${y}`;
-  }, [minDate]);
 
   const disponiblesCount = useMemo(() => {
     return bloques.filter((b) => {
@@ -326,20 +379,19 @@ export function ReservaFormDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4 mt-2">
-          {/* Instalación — primero si es modo crear para cargar sus horarios */}
+        <form onSubmit={handleSubmit(onSubmitValid)} className="space-y-4 mt-2">
+          {/* Instalación — solo en modo crear */}
           {mode === 'crear' && (
             <div>
               <label className={labelClassName}>Instalación</label>
               <select
-                value={idInstalacion}
-                onChange={(e) => {
-                  setIdInstalacion(Number(e.target.value));
-                  setHorarioInicio('');
-                  setHorarioFin('');
-                }}
-                className={selectClassName}
-                required
+                {...register('idInstalacion', {
+                  onChange: () => {
+                    setValue('horarioInicio', '');
+                    setValue('horarioFin', '');
+                  },
+                })}
+                className={selectClass(!!errors.idInstalacion)}
               >
                 <option value={0} disabled>Selecciona una instalación…</option>
                 {instalaciones.map((i) => (
@@ -348,40 +400,51 @@ export function ReservaFormDialog({
                   </option>
                 ))}
               </select>
+              <FieldError message={errors.idInstalacion?.message} />
             </div>
           )}
 
-          {/* Fecha con calendario react-day-picker */}
+          {/* Fecha con calendario react-day-picker a través de Controller */}
           <div>
             <label className={labelClassName}>Fecha de la Reserva</label>
-            <DatePickerCalendar
-              value={fechaReserva}
-              onChange={(dateStr) => {
-                setFechaReserva(dateStr);
-                setHorarioInicio('');
-                setHorarioFin('');
-              }}
-              minDate={minDate}
-              disabledDaysOfWeek={disabledDaysOfWeek}
-              noOpenDays={!loadingPlantillas && idInstalacion > 0 && plantillasInstalacion.length === 0}
-              noOpenDaysMessage="Esta instalación no tiene días de apertura configurados. Configure los horarios primero."
-              placeholder="Seleccionar fecha de reserva…"
-              helperText={
-                <>
-                  <div className="flex items-center justify-between text-[10px] text-gray-400">
-                    <span className="flex items-center gap-1">
-                      <AlertCircle className="h-3 w-3" />
-                      Mínimo 48 hs de anticipación (desde {minDateDisplay} {String(min48h.getHours()).padStart(2,'0')}:{String(min48h.getMinutes()).padStart(2,'0')} hs)
-                    </span>
-                    {diaSemanaSeleccionado && (
-                      <span className="font-semibold text-gray-600">
-                        {DIA_SEMANA_TO_LABEL[diaSemanaSeleccionado]}
-                      </span>
-                    )}
-                  </div>
-                </>
-              }
+            <Controller
+              control={control}
+              name="fechaReserva"
+              render={({ field }) => (
+                <DatePickerCalendar
+                  value={field.value}
+                  onChange={(dateStr) => {
+                    field.onChange(dateStr);
+                    setValue('horarioInicio', '');
+                    setValue('horarioFin', '');
+                  }}
+                  minDate={minDate}
+                  maxDate={maxDate}
+                  disabledDaysOfWeek={disabledDaysOfWeek}
+                  noOpenDays={!loadingPlantillas && Number(idInstalacion) > 0 && plantillasInstalacion.length === 0}
+                  noOpenDaysMessage="Esta instalación no tiene días de apertura configurados. Configure los horarios primero."
+                  placeholder="Seleccionar fecha de reserva…"
+                  helperText={
+                    <div className="flex flex-col gap-0.5 text-[10px] text-gray-500 mt-1">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3 text-amber-500 shrink-0" />
+                          <span>
+                            Desde {minDateDisplay} (mín. 48 hs) hasta {maxDateDisplay} (máx. 2 meses).
+                          </span>
+                        </span>
+                        {diaSemanaSeleccionado && (
+                          <span className="font-semibold text-gray-700 shrink-0">
+                            {DIA_SEMANA_TO_LABEL[diaSemanaSeleccionado]}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  }
+                />
+              )}
             />
+            <FieldError message={errors.fechaReserva?.message} />
 
             {/* Aviso si la instalación está cerrada ese día según plantillas */}
             {esDiaCerrado && diaSemanaSeleccionado && (
@@ -415,8 +478,7 @@ export function ReservaFormDialog({
               <select
                 value={horarioInicio}
                 onChange={(e) => handleBloqueSelect(e.target.value)}
-                className={selectClassName}
-                required
+                className={selectClass(!!errors.horarioInicio)}
                 disabled={esDiaCerrado || !fechaReserva || loadingBloques || bloques.length === 0}
               >
                 {!fechaReserva ? (
@@ -431,7 +493,7 @@ export function ReservaFormDialog({
                   <option value="" disabled>Seleccionar turno disponible…</option>
                 )}
 
-                {/* ÚNICAMENTE turnos obtenidos de la API (sin mock data) */}
+                {/* Turnos obtenidos de la API */}
                 {bloques.map((b) => {
                   const ini = formatHora(b.horaInicio);
                   const fin = formatHora(b.horaFin);
@@ -452,6 +514,7 @@ export function ReservaFormDialog({
                   );
                 })}
               </select>
+              <FieldError message={errors.horarioInicio?.message} />
 
               {/* Indicador de disponibilidad en tiempo real */}
               {bloques.length > 0 && !loadingBloques && (
@@ -478,8 +541,9 @@ export function ReservaFormDialog({
                 value={horarioFin ? `${horarioFin} hs` : ''}
                 readOnly
                 placeholder="Se completa al elegir turno"
-                className={`${inputClassName} bg-gray-50 text-gray-700 font-medium cursor-not-allowed`}
+                className={inputClass(!!errors.horarioFin, 'bg-gray-50 text-gray-700 font-medium cursor-not-allowed')}
               />
+              <FieldError message={errors.horarioFin?.message} />
             </div>
           </div>
 
@@ -488,10 +552,8 @@ export function ReservaFormDialog({
             <div>
               <label className={labelClassName}>Usuario</label>
               <select
-                value={idUsuario}
-                onChange={(e) => setIdUsuario(Number(e.target.value))}
-                className={selectClassName}
-                required
+                {...register('idUsuario')}
+                className={selectClass(!!errors.idUsuario)}
               >
                 <option value={0} disabled>Selecciona un usuario…</option>
                 {usuarios.map((u) => (
@@ -500,10 +562,11 @@ export function ReservaFormDialog({
                   </option>
                 ))}
               </select>
+              <FieldError message={errors.idUsuario?.message} />
             </div>
           )}
 
-          {/* Error */}
+          {/* Error de servidor / validación de regla */}
           {formError && (
             <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs font-medium">
               {formError}
@@ -546,3 +609,5 @@ export function ReservaFormDialog({
     </Dialog>
   );
 }
+
+export default ReservaFormDialog;

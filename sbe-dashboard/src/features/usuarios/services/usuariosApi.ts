@@ -50,6 +50,18 @@ export interface UsuarioRequestDto {
   categoriaId: number;
 }
 
+/** PUT /api/usuarios/:id — UsuarioUpdateDto (sin contraseña) */
+export interface UsuarioUpdateDto {
+  dni: string;
+  nombreCompleto: string;
+  email: string;
+  fechaNacimiento: string;
+  estado: string;
+  domicilio: string;
+  rolId: number;
+  categoriaId: number;
+}
+
 // ─── Normalización ───────────────────────────────────────────────────────────
 
 export function normalizeUsuario(raw: any): UsuarioResponseDto {
@@ -111,7 +123,7 @@ export async function createUsuario(
 /** PUT /api/usuarios/:id */
 export async function updateUsuario(
   id: number,
-  body: UsuarioRequestDto
+  body: UsuarioUpdateDto
 ): Promise<UsuarioResponseDto> {
   const data = await apiClient.put<any>(`${RESOURCE}/${id}`, body);
   return normalizeUsuario(data);

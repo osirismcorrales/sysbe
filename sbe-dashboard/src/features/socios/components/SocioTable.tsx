@@ -59,106 +59,190 @@ function getEstadoBadge(estado: string) {
 // ─── Componente ─────────────────────────────────────────────────────────────
 
 export function SocioTable({ socios, onEdit, onDarDeBaja, onAjustePuntos }: SocioTableProps) {
+  if (socios.length === 0) {
+    return (
+      <div className="text-center py-10 text-gray-400 font-medium text-xs">
+        No se encontraron socios.
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="border-b border-gray-100 text-gray-400 font-semibold bg-gray-50/50">
-            <th className="py-3 px-6">DNI</th>
-            <th className="py-3 px-6">NOMBRE Y CONTACTO</th>
-            <th className="py-3 px-6">CATEGORÍA</th>
-            <th className="py-3 px-6">VÍNCULO</th>
-            <th className="py-3 px-6">PUNTOS</th>
-            <th className="py-3 px-6">ESTADO</th>
-            <th className="py-3 px-6 text-right">ACCIONES</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
-          {socios.length === 0 && (
-            <tr>
-              <td colSpan={7} className="text-center py-8 text-gray-400 font-medium bg-gray-50/10">
-                No se encontraron socios.
-              </td>
-            </tr>
-          )}
-          {socios.map((socio) => (
-            <tr key={socio.dni} className="hover:bg-gray-50/30 transition-colors">
-              {/* DNI */}
-              <td className="py-4 px-6 font-semibold text-gray-900">{socio.dni}</td>
-
-              {/* Nombre y Contacto */}
-              <td className="py-4 px-6 space-y-1">
-                <div className="font-bold text-gray-950 text-sm">{socio.nombreCompleto}</div>
-                <div className="flex items-center gap-1 text-gray-400 font-normal">
-                  <Mail className="h-3 w-3" />
-                  {socio.email}
+    <div className="w-full">
+      {/* ─── Vista Móvil / Tablet: Tarjetas fluidas (block md:hidden) ─────────── */}
+      <div className="block md:hidden divide-y divide-gray-100 p-2 sm:p-2.5 space-y-2.5">
+        {socios.map((socio) => (
+          <div
+            key={socio.dni}
+            className="bg-white border border-gray-200/80 rounded-xl p-3 shadow-2xs space-y-2.5 transition-all"
+          >
+            {/* Cabecera: Nombre + Estado */}
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-bold text-gray-950 text-xs truncate">
+                  {socio.nombreCompleto}
                 </div>
-              </td>
+                <div className="flex items-center gap-1 text-[11px] text-gray-400 font-normal truncate mt-0.5">
+                  <Mail className="h-3 w-3 shrink-0" />
+                  <span className="truncate">{socio.email}</span>
+                </div>
+              </div>
+              <div className="shrink-0">
+                {getEstadoBadge(socio.estado)}
+              </div>
+            </div>
 
-              {/* Categoría */}
-              <td className="py-4 px-6">
-                {getCategoriaBadge(socio.tipoSocio)}
-              </td>
-
-              {/* Vínculo */}
-              <td className="py-4 px-6">
-                <span className="text-[10px] font-bold text-gray-500">
-                  {socio.vinculoUnse || '—'}
-                </span>
-              </td>
-
-              {/* Puntos */}
-              <td className="py-4 px-6">
-                <span className="flex items-center gap-1 font-bold text-amber-600">
-                  <Award className="h-4 w-4" />
+            {/* Fila de datos: DNI, Categoría, Vínculo, Puntos */}
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1 border-t border-gray-100">
+              <div>
+                <span className="text-[10px] text-gray-400 font-medium block">DNI</span>
+                <span className="font-bold text-gray-800 text-[11px]">{socio.dni}</span>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 font-medium block">Puntos Acumulados</span>
+                <span className="inline-flex items-center gap-1 font-bold text-amber-600 text-xs">
+                  <Award className="h-3.5 w-3.5" />
                   {socio.puntosAc ?? 0} pts
                 </span>
-              </td>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 font-medium block">Categoría</span>
+                <div className="mt-0.5">{getCategoriaBadge(socio.tipoSocio)}</div>
+              </div>
+              <div>
+                <span className="text-[10px] text-gray-400 font-medium block">Vínculo UNSE</span>
+                <span className="text-[11px] font-semibold text-gray-600 mt-0.5 block truncate">
+                  {socio.vinculoUnse || 'Sin vínculo'}
+                </span>
+              </div>
+            </div>
 
-              {/* Estado */}
-              <td className="py-4 px-6">
-                {getEstadoBadge(socio.estado)}
-              </td>
+            {/* Botones de acción móviles */}
+            <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-gray-100">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onAjustePuntos(socio)}
+                className="h-7 px-2 text-[10px] font-bold cursor-pointer justify-center text-amber-700 border-amber-200 hover:bg-amber-50"
+                title="Gestionar puntos"
+              >
+                <Award className="h-3 w-3 mr-1 shrink-0" />
+                <span className="truncate">Puntos</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onEdit(socio)}
+                className="h-7 px-2 text-[10px] font-bold cursor-pointer justify-center text-blue-700 border-blue-200 hover:bg-blue-50"
+                title="Cambiar categoría"
+              >
+                <Edit2 className="h-3 w-3 mr-1 shrink-0" />
+                <span className="truncate">Categoría</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onDarDeBaja(socio)}
+                className="h-7 px-2 text-[10px] font-bold cursor-pointer justify-center text-red-600 border-red-200 hover:bg-red-50"
+                title="Dar de baja membresía"
+              >
+                <UserX className="h-3 w-3 mr-1 shrink-0" />
+                <span className="truncate">Baja</span>
+              </Button>
+            </div>
+          </div>
+        ))}
+      </div>
 
-              {/* Acciones */}
-              <td className="py-4 px-6 text-right">
-                <div className="flex items-center justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onAjustePuntos(socio)}
-                    className="h-8 px-2.5 text-[10px] font-semibold cursor-pointer"
-                    title="Gestionar puntos"
-                  >
-                    <Award className="h-3.5 w-3.5 mr-1 text-amber-500" />
-                    Puntos
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onEdit(socio)}
-                    className="h-8 w-8 p-0 cursor-pointer"
-                    title="Cambiar categoría"
-                  >
-                    <Edit2 className="h-3.5 w-3.5 text-gray-500" />
-                  </Button>
-
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => onDarDeBaja(socio)}
-                    className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 cursor-pointer"
-                    title="Dar de baja membresía"
-                  >
-                    <UserX className="h-3.5 w-3.5 text-red-500" />
-                  </Button>
-                </div>
-              </td>
+      {/* ─── Vista Desktop: Tabla Adaptable al 100% de ancho sin scroll horizontal (hidden md:block) ────────────────── */}
+      <div className="hidden md:block overflow-x-auto">
+        <table className="w-full text-left border-collapse table-auto">
+          <thead className="bg-gray-50/75 border-b border-gray-200 text-gray-500 font-semibold text-[10px] uppercase tracking-wider">
+            <tr>
+              <th className="py-2.5 px-3 whitespace-nowrap w-24">DNI</th>
+              <th className="py-2.5 px-3">Nombre</th>
+              <th className="py-2.5 px-3 whitespace-nowrap w-32">Categoría</th>
+              <th className="py-2.5 px-3 whitespace-nowrap w-24">Puntos</th>
+              <th className="py-2.5 px-3 whitespace-nowrap w-24">Estado</th>
+              <th className="py-2.5 px-3 text-right whitespace-nowrap w-36">Acciones</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100 font-medium text-gray-700 text-xs">
+            {socios.map((socio) => (
+              <tr key={socio.dni} className="hover:bg-gray-50/40 transition-colors">
+                <td className="py-2.5 px-3 font-bold text-gray-900 whitespace-nowrap text-xs">{socio.dni}</td>
+                <td className="py-2.5 px-3 min-w-0">
+                  <div
+                    className="font-bold text-gray-900 text-xs leading-tight truncate max-w-[180px] lg:max-w-[260px]"
+                    title={socio.nombreCompleto}
+                  >
+                    {socio.nombreCompleto}
+                  </div>
+                  <div
+                    className="flex items-center gap-1 text-gray-400 font-normal text-[10px] truncate max-w-[180px] lg:max-w-[260px]"
+                    title={socio.email}
+                  >
+                    <Mail className="h-2.5 w-2.5 shrink-0" />
+                    <span className="truncate">{socio.email}</span>
+                  </div>
+                </td>
+                <td className="py-2.5 px-3 whitespace-nowrap">
+                  <div>{getCategoriaBadge(socio.tipoSocio)}</div>
+                  {socio.vinculoUnse && (
+                    <span
+                      className="text-[10px] font-semibold text-gray-400 block mt-0.5 truncate max-w-[130px]"
+                      title={socio.vinculoUnse}
+                    >
+                      {socio.vinculoUnse}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2.5 px-3 whitespace-nowrap">
+                  <span className="flex items-center gap-1 font-bold text-amber-600 text-xs">
+                    <Award className="h-3.5 w-3.5 shrink-0" />
+                    {socio.puntosAc ?? 0} pts
+                  </span>
+                </td>
+                <td className="py-2.5 px-3 whitespace-nowrap">
+                  {getEstadoBadge(socio.estado)}
+                </td>
+                <td className="py-2.5 px-3 text-right whitespace-nowrap">
+                  <div className="flex items-center justify-end gap-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onAjustePuntos(socio)}
+                      className="h-7 px-2 text-[10px] font-semibold cursor-pointer"
+                      title="Gestionar puntos"
+                    >
+                      <Award className="h-3 w-3 mr-1 text-amber-500" />
+                      Puntos
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onEdit(socio)}
+                      className="h-7 w-7 p-0 cursor-pointer"
+                      title="Cambiar categoría"
+                    >
+                      <Edit2 className="h-3 w-3 text-gray-500" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onDarDeBaja(socio)}
+                      className="h-7 w-7 p-0 hover:bg-red-50 hover:text-red-600 cursor-pointer"
+                      title="Dar de baja membresía"
+                    >
+                      <UserX className="h-3 w-3 text-red-500" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

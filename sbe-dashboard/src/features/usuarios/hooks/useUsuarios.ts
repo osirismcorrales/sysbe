@@ -12,10 +12,11 @@ import {
   desactivarUsuario,
   type UsuarioResponseDto,
   type UsuarioRequestDto,
+  type UsuarioUpdateDto,
 } from '../services/usuariosApi';
 import { getCategorias, type CategoriaResponseDto } from '../../socios/services/sociosApi';
 
-export type { UsuarioResponseDto, UsuarioRequestDto };
+export type { UsuarioResponseDto, UsuarioRequestDto, UsuarioUpdateDto };
 export type { Rol, Categoria } from '../services/usuariosApi';
 export type { CategoriaResponseDto };
 
@@ -26,7 +27,7 @@ export interface UseUsuariosResult {
   error: string | null;
   refresh: () => void;
   crear: (data: UsuarioRequestDto) => Promise<UsuarioResponseDto>;
-  actualizar: (id: number, data: UsuarioRequestDto) => Promise<UsuarioResponseDto>;
+  actualizar: (id: number, data: UsuarioUpdateDto) => Promise<UsuarioResponseDto>;
   desactivar: (id: number) => Promise<void>;
 }
 
@@ -67,7 +68,7 @@ export function useUsuarios(): UseUsuariosResult {
     return nuevo;
   }, []);
 
-  const actualizar = useCallback(async (id: number, data: UsuarioRequestDto) => {
+  const actualizar = useCallback(async (id: number, data: UsuarioUpdateDto) => {
     const updated = await updateUsuario(id, data);
     setUsuarios((prev) => prev.map((u) => (u.id === id ? updated : u)));
     return updated;

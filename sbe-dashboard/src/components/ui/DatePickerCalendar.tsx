@@ -107,6 +107,9 @@ export function DatePickerCalendar({
   const selectedDate = parseDate(value);
   const min = parseDate(minDate || '');
   const max = parseDate(maxDate || '');
+  const maxForMatcher = max
+    ? new Date(max.getFullYear(), max.getMonth(), max.getDate(), 23, 59, 59, 999)
+    : undefined;
 
   // Construir matchers para disabled
   const disabledMatchers: Array<
@@ -115,7 +118,7 @@ export function DatePickerCalendar({
     | { dayOfWeek: number[] }
   > = [];
   if (min) disabledMatchers.push({ before: min });
-  if (max) disabledMatchers.push({ after: max });
+  if (maxForMatcher) disabledMatchers.push({ after: maxForMatcher });
   if (disabledDaysOfWeek.length > 0) {
     disabledMatchers.push({ dayOfWeek: disabledDaysOfWeek });
   }
@@ -200,6 +203,8 @@ export function DatePickerCalendar({
               selected={selectedDate}
               onSelect={handleSelect}
               defaultMonth={defaultMonth}
+              startMonth={min}
+              endMonth={max}
               disabled={disabledMatchers}
               weekStartsOn={1}
               showOutsideDays

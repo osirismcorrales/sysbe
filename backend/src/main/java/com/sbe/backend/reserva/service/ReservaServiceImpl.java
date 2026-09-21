@@ -137,9 +137,6 @@ public class ReservaServiceImpl implements ReservaService{
         Reserva reserva = reservaRepository.findById(idReserva)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Reserva no encontrada"));
 
-        if (reserva.getEstado() != EstadoReserva.RESERVADA) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "La reserva no se encuentra en estado RESERVADO");
-        }
 
         LocalDateTime fechaHoraReservaActual = LocalDateTime.of(reserva.getFechaReserva(), reserva.getHorarioInicio());
 

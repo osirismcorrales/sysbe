@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useInstalaciones } from '../hooks/useInstalaciones';
+import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Plus, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 
@@ -17,9 +18,12 @@ import {
 } from '../components/InstalacionCard';
 import {
   InstalacionFormDialog,
+  EMPTY_INSTALACION_FORM,
   type InstalacionFormData,
 } from '../components/InstalacionFormDialog';
+import type { InstalacionRequestDto } from '../services/instalacionesApi';
 import { HorarioDialog } from '../components/HorarioDialog';
+import { toast } from '../../../components/ui/Toast';
 import {
   listarPlantillas,
   formatHora,
@@ -30,14 +34,6 @@ import {
 } from '../services/plantillasHorarioApi';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
-
-const EMPTY_FORM: InstalacionFormData = {
-  nombre: '',
-  descripcion: '',
-  precioBase: 0,
-  duracionMinutos: 60,
-  estado: 'Habilitada',
-};
 
 const DIAS_ORDER: DiaSemana[] = [
   'LUNES',
@@ -87,24 +83,34 @@ export function InstalacionesPage() {
   // ─── Modal states ───────────────────────────────────────────────────────
 
   const [isNewOpen, setIsNewOpen] = useState(false);
-  const [newForm, setNewForm] = useState<InstalacionFormData>({ ...EMPTY_FORM });
-
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<InstalacionFormData>({ ...EMPTY_FORM });
+  const [editForm, setEditForm] = useState<InstalacionFormData>({ ...EMPTY_INSTALACION_FORM });
 
   const [horarioTargetId, setHorarioTargetId] = useState<number | null>(null);
   const [horarioTargetName, setHorarioTargetName] = useState('');
 
+  // ─── Filtros locales ──────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [estadoFilter, setEstadoFilter] = useState('all');
+
+  const filteredInstalaciones = instalacionesList.filter((inst) => {
+    const matchesSearch =
+      !searchQuery ||
+      inst.nombre.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (inst.descripcion && inst.descripcion.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesEstado = estadoFilter === 'all' || inst.estado === estadoFilter;
+    return matchesSearch && matchesEstado;
+  });
+
   // ─── Handlers: Crear ────────────────────────────────────────────────────
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async (data: InstalacionRequestDto) => {
     try {
-      await crear(newForm);
-      setIsNewOpen(false);
-      setNewForm({ ...EMPTY_FORM });
+      await crear(data);
+      toast.success('Instalación creada exitosamente.');
     } catch (err) {
-      alert(`Error al crear instalación: ${(err as Error).message}`);
+      toast.error((err as Error).message || 'Error al crear instalación.', 'Error');
+      throw err;
     }
   };
 
@@ -121,14 +127,15 @@ export function InstalacionesPage() {
     });
   };
 
-  const handleEditInfoSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditInfoSubmit = async (data: InstalacionRequestDto) => {
     if (!editingId) return;
     try {
-      await actualizar(Number(editingId), editForm);
+      await actualizar(Number(editingId), data);
+      toast.success('Instalación actualizada exitosamente.');
       setEditingId(null);
     } catch (err) {
-      alert(`Error al actualizar instalación: ${(err as Error).message}`);
+      toast.error((err as Error).message || 'Error al actualizar instalación.', 'Error');
+      throw err;
     }
   };
 
@@ -144,8 +151,9 @@ export function InstalacionesPage() {
   const handleStatusChange = async (id: string, estado: string) => {
     try {
       await cambiarEstado(Number(id), estado);
+      toast.success(`Estado cambiado a "${estado}".`);
     } catch (err) {
-      alert(`Error al cambiar estado: ${(err as Error).message}`);
+      toast.error((err as Error).message || 'Error al cambiar estado.', 'Error');
     }
   };
 
@@ -237,52 +245,85 @@ export function InstalacionesPage() {
   // ─── Render ─────────────────────────────────────────────────────────────
 
   return (
-    <div className="space-y-6 select-none text-xs">
-      {/* Header Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 border border-gray-200 rounded-xl shadow-xs">
-        <div>
-          <h2 className="text-base font-bold text-slate-900">Gestión de Instalaciones</h2>
-          <p className="font-medium text-gray-500 text-xs mt-0.5">
-            Administre instalaciones, días de apertura y rangos horarios para las reservas del Polideportivo
-          </p>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button
-            onClick={handleFullRefresh}
-            variant="outline"
-            size="sm"
-            className="flex items-center gap-1.5 font-semibold text-xs rounded-lg shadow-xs h-8 cursor-pointer"
-            title="Actualizar desde el servidor"
-          >
-            <RefreshCw className="h-3.5 w-3.5" />
-            Actualizar
-          </Button>
-          <Button
-            onClick={() => setIsNewOpen(true)}
-            variant="brand"
-            size="sm"
-            className="flex items-center gap-1.5 font-semibold text-xs rounded-lg shadow-xs h-8 cursor-pointer"
-          >
-            <Plus className="h-4 w-4" />
-            Nueva Instalación
-          </Button>
-        </div>
-      </div>
+    <div className="space-y-4 select-none text-xs">
+      {/* Barra de herramientas compacta y unificada */}
+      <Card className="shadow-xs">
+        <CardContent className="p-2 sm:p-2.5 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="font-bold text-gray-900 text-sm">Instalaciones</span>
+            <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+              {filteredInstalaciones.length} de {instalacionesList.length}
+            </span>
+          </div>
 
-      {/* Instalaciones Grid - Responsive y adaptable */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-        {instalacionesList.map((instalacion) => (
-          <InstalacionCard
-            key={instalacion.id}
-            instalacion={instalacion}
-            horariosList={getHorariosList(instalacion.id)}
-            horarioSummary={getHorarioSummary(instalacion.id)}
-            onStatusChange={handleStatusChange}
-            onEditInfo={handleEditInfoClick}
-            onEditHorario={handleEditHorarioClick}
-          />
-        ))}
-      </div>
+          <div className="flex flex-1 items-center gap-2 min-w-[200px] max-w-xl">
+            <input
+              type="text"
+              placeholder="Buscar por nombre o descripción..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="flex-1 h-8 px-2.5 border border-gray-200 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs font-medium"
+            />
+
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-semibold text-gray-500 text-[11px] whitespace-nowrap hidden sm:inline">Estado:</span>
+              <select
+                value={estadoFilter}
+                onChange={(e) => setEstadoFilter(e.target.value)}
+                className="h-8 px-2 border border-gray-200 bg-white rounded-lg focus:outline-none text-xs font-semibold cursor-pointer max-w-[140px]"
+              >
+                <option value="all">Todos</option>
+                <option value="Habilitada">Habilitada</option>
+                <option value="Mantenimiento">Mantenimiento</option>
+                <option value="Deshabilitada">Deshabilitada</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              onClick={handleFullRefresh}
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 flex items-center justify-center font-semibold rounded-lg shadow-xs cursor-pointer"
+              title="Actualizar desde el servidor"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              onClick={() => setIsNewOpen(true)}
+              variant="brand"
+              size="sm"
+              className="h-8 px-3 flex items-center gap-1 font-semibold text-xs rounded-lg shadow-xs cursor-pointer"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="hidden xs:inline">Nueva Instalación</span>
+              <span className="xs:hidden">Nueva</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Instalaciones Grid */}
+      {filteredInstalaciones.length === 0 ? (
+        <div className="bg-white border border-gray-200 rounded-xl p-8 text-center text-gray-400 font-medium text-xs shadow-xs">
+          No se encontraron instalaciones que coincidan con los filtros.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-3 sm:gap-4">
+          {filteredInstalaciones.map((instalacion) => (
+            <InstalacionCard
+              key={instalacion.id}
+              instalacion={instalacion}
+              horariosList={getHorariosList(instalacion.id)}
+              horarioSummary={getHorarioSummary(instalacion.id)}
+              onStatusChange={handleStatusChange}
+              onEditInfo={handleEditInfoClick}
+              onEditHorario={handleEditHorarioClick}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Modal: Crear instalación */}
       <InstalacionFormDialog
@@ -291,8 +332,6 @@ export function InstalacionesPage() {
         title="Registrar Nueva Instalación"
         description="Cree una nueva instalación deportiva para el polideportivo."
         submitLabel="Crear Instalación"
-        formData={newForm}
-        onFormChange={setNewForm}
         onSubmit={handleCreate}
       />
 
@@ -303,8 +342,7 @@ export function InstalacionesPage() {
         title="Editar Información de la Instalación"
         description="Modifique nombre, descripción, precio y duración."
         submitLabel="Guardar Cambios"
-        formData={editForm}
-        onFormChange={setEditForm}
+        initialValues={editForm}
         onSubmit={handleEditInfoSubmit}
       />
 

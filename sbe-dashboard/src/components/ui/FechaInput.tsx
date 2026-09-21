@@ -1,24 +1,50 @@
 /**
  * FechaInput.tsx
- * Componente reutilizable para campos de fecha (ej. Fecha de Nacimiento).
- * Permite escribir la fecha con formateo automático (DD/MM/AAAA) sin forzar
- * el uso del selector de calendario del navegador.
+ * Campo de fecha editable por segmentos (día / mes / año) con HeroUI DateField.
+ * Mantiene el contrato de string ISO que espera el backend.
  */
 
-import React from 'react';
+import React, { useMemo } from 'react';
+import { Calendar } from 'lucide-react';
+import { DateField } from '@heroui/react';
+import { parseDate, today, getLocalTimeZone } from '@internationalized/date';
+import type { DateValue } from '@internationalized/date';
 import { cn } from '../../lib/utils';
 
-export interface FechaInputProps extends Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'> {
+export interface FechaInputProps {
   value: string;
   onChange: (value: string) => void;
   outputFormat?: 'iso-datetime' | 'iso-date' | 'display';
   error?: boolean;
+  required?: boolean;
+  disabled?: boolean;
+  className?: string;
+  'aria-label'?: string;
+  minValue?: DateValue;
+  maxValue?: DateValue;
 }
 
-/**
- * Convierte un string en formato ISO (YYYY-MM-DD o YYYY-MM-DDTHH:mm:ss)
- * a formato legible DD/MM/AAAA. Si ya está formateado o parcial, lo mantiene.
- */
+function toDateValue(val: string): DateValue | null {
+  if (!val) return null;
+  const iso = val.substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  try {
+    return parseDate(iso);
+  } catch {
+    return null;
+  }
+}
+
+function formatOutput(date: DateValue, outputFormat: FechaInputProps['outputFormat']): string {
+  const iso = date.toString();
+  if (outputFormat === 'iso-datetime') return `${iso}T00:00:00`;
+  if (outputFormat === 'display') {
+    const [y, m, d] = iso.split('-');
+    return `${d}/${m}/${y}`;
+  }
+  return iso;
+}
+
 export function formatToDisplay(val: string): string {
   if (!val) return '';
   const d = val.substring(0, 10);
@@ -29,67 +55,57 @@ export function formatToDisplay(val: string): string {
   return val;
 }
 
-export const FechaInput = React.forwardRef<HTMLInputElement, FechaInputProps>(
+export const FechaInput = React.forwardRef<HTMLDivElement, FechaInputProps>(
   (
     {
       value,
       onChange,
       outputFormat = 'iso-date',
       error = false,
-      placeholder = 'DD/MM/AAAA',
+      required = false,
+      disabled = false,
       className,
-      ...props
+      'aria-label': ariaLabel = 'Fecha',
+      minValue: propMinValue,
+      maxValue: propMaxValue,
     },
-    ref
+    _ref
   ) => {
-    const displayVal = formatToDisplay(value);
+    const dateValue = useMemo(() => toDateValue(value), [value]);
+    const defaultMaxValue = useMemo(() => today(getLocalTimeZone()), []);
+    const defaultMinValue = useMemo(() => {
+      const minYear = new Date().getFullYear() - 120;
+      return parseDate(`${minYear}-01-01`);
+    }, []);
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const prev = e.target.value;
-      // Extraer solo dígitos numéricos (máximo 8 dígitos: DDMMAAAA)
-      const digits = prev.replace(/\D/g, '').substring(0, 8);
-
-      // Auto-formatear: DD → DD/ → DD/MM → DD/MM/ → DD/MM/AAAA
-      let formatted = '';
-      for (let i = 0; i < digits.length; i++) {
-        if (i === 2 || i === 4) formatted += '/';
-        formatted += digits[i];
-      }
-
-      // Si se completaron los 8 dígitos, emitir según el outputFormat deseado
-      if (digits.length === 8) {
-        const dd = digits.substring(0, 2);
-        const mm = digits.substring(2, 4);
-        const yyyy = digits.substring(4, 8);
-
-        if (outputFormat === 'iso-datetime') {
-          onChange(`${yyyy}-${mm}-${dd}T00:00:00`);
-        } else if (outputFormat === 'iso-date') {
-          onChange(`${yyyy}-${mm}-${dd}`);
-        } else {
-          onChange(formatted);
-        }
-      } else {
-        // Valor parcial mientras el usuario está escribiendo
-        onChange(formatted);
-      }
-    };
+    const effectiveMaxValue = propMaxValue ?? defaultMaxValue;
+    const effectiveMinValue = propMinValue ?? defaultMinValue;
 
     return (
-      <input
-        ref={ref}
-        type="text"
-        placeholder={placeholder}
-        value={displayVal}
-        onChange={handleChange}
-        maxLength={10}
-        className={cn(
-          'h-9 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs transition-colors',
-          error && 'border-red-500 focus:border-red-500 focus:ring-red-200',
-          className
-        )}
-        {...props}
-      />
+      <DateField
+        aria-label={ariaLabel}
+        className={cn('w-full', className)}
+        granularity="day"
+        isDisabled={disabled}
+        isInvalid={error}
+        isRequired={required}
+        minValue={effectiveMinValue}
+        maxValue={effectiveMaxValue}
+        shouldForceLeadingZeros
+        value={dateValue}
+        onChange={(next) => {
+          onChange(next ? formatOutput(next, outputFormat) : '');
+        }}
+      >
+        <DateField.Group variant="secondary" className="h-9 min-h-9 w-full text-xs">
+          <DateField.Prefix>
+            <Calendar className="size-3.5 text-gray-400" />
+          </DateField.Prefix>
+          <DateField.Input>
+            {(segment) => <DateField.Segment segment={segment} />}
+          </DateField.Input>
+        </DateField.Group>
+      </DateField>
     );
   }
 );

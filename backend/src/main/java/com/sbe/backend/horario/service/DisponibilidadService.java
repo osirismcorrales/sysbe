@@ -61,24 +61,46 @@ public class DisponibilidadService {
         LocalTime ahora = LocalTime.now();
 
         for (PlantillaHorario plantilla : plantillas) {
-            LocalTime cursor = plantilla.getHoraInicio();
-            LocalTime fin = plantilla.getHoraFin();
+            LocalTime hIni = plantilla.getHoraInicio();
+            LocalTime hFin = plantilla.getHoraFin();
+            if (hIni == null || hFin == null) {
+                continue;
+            }
 
-            while (!cursor.plusMinutes(duracion).isAfter(fin)) {
-                LocalTime bloqueInicio = cursor;
-                LocalTime bloqueFin = cursor.plusMinutes(duracion);
+            int startMinutes = hIni.getHour() * 60 + hIni.getMinute();
+            int endMinutes = hFin.getHour() * 60 + hFin.getMinute();
 
-                boolean tieneConflicto = reservasActivas.stream().anyMatch(r ->
-                        r.getHorarioInicio().isBefore(bloqueFin) && r.getHorarioFin().isAfter(bloqueInicio)
-                );
+            // Si horaFin es 00:00 (medianoche) y horaInicio > 0, representa cierre a las 24:00 (1440 min)
+            if (endMinutes <= startMinutes && (hFin.equals(LocalTime.MIDNIGHT) || endMinutes == 0)) {
+                endMinutes = 24 * 60;
+            }
+
+            if (endMinutes <= startMinutes) {
+                continue;
+            }
+
+            for (int m = startMinutes; m + duracion <= endMinutes; m += duracion) {
+                final int iniM = m;
+                final int finM = m + duracion;
+                LocalTime bloqueInicio = LocalTime.of(iniM / 60, iniM % 60);
+                LocalTime bloqueFin = finM >= 1440 ? LocalTime.of(23, 59, 59) : LocalTime.of(finM / 60, finM % 60);
+
+                boolean tieneConflicto = reservasActivas.stream().anyMatch(r -> {
+                    LocalTime rInicio = r.getHorarioInicio();
+                    LocalTime rFin = r.getHorarioFin();
+                    if (rInicio == null || rFin == null) return false;
+                    int rIni = rInicio.getHour() * 60 + rInicio.getMinute();
+                    int rF = rFin.getHour() * 60 + rFin.getMinute();
+                    if (rF <= rIni && (rFin.equals(LocalTime.MIDNIGHT) || rF == 0)) {
+                        rF = 1440;
+                    }
+                    return rIni < finM && rF > iniM;
+                });
 
                 boolean yaPaso = fecha.isEqual(hoy) && bloqueInicio.isBefore(ahora);
-
                 boolean disponible = !tieneConflicto && !yaPaso;
 
                 bloques.add(new BloqueDto(bloqueInicio, bloqueFin, disponible));
-
-                cursor = cursor.plusMinutes(duracion);
             }
         }
 
