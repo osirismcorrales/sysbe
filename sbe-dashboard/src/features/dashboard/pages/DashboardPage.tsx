@@ -6,7 +6,6 @@ import {
   Dumbbell,
   CalendarDays,
   ArrowUpRight,
-  Clock,
   Mail,
   Loader2,
   AlertCircle
@@ -17,6 +16,7 @@ import { Button } from '../../../components/ui/Button';
 import { getSocios, type SocioResponseDto } from '../../socios/services/sociosApi';
 import { getUsuarios, type UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
 import { getInstalaciones, type InstalacionResponseDto } from '../../instalaciones/services/instalacionesApi';
+import { getAllReservas, type ReservaResponseDto } from '../../reservas/services/reservasApi';
 
 export function DashboardPage() {
   const navigate = useNavigate();
@@ -27,6 +27,7 @@ export function DashboardPage() {
   const [socios, setSocios] = useState<SocioResponseDto[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioResponseDto[]>([]);
   const [instalaciones, setInstalaciones] = useState<InstalacionResponseDto[]>([]);
+  const [reservas, setReservas] = useState<ReservaResponseDto[]>([]);
 
   useEffect(() => {
     let isCancelled = false;
@@ -38,12 +39,16 @@ export function DashboardPage() {
       getUsuarios().catch(() => [] as UsuarioResponseDto[]),
       getInstalaciones().catch(() => [] as InstalacionResponseDto[]),
     ])
-      .then(([sociosData, usuariosData, instalacionesData]) => {
-        if (!isCancelled) {
-          setSocios(sociosData);
-          setUsuarios(usuariosData);
-          setInstalaciones(instalacionesData);
-        }
+      .then(async ([sociosData, usuariosData, instalacionesData]) => {
+        if (isCancelled) return;
+        setSocios(sociosData);
+        setUsuarios(usuariosData);
+        setInstalaciones(instalacionesData);
+
+        // Cargar reservas iterando por usuario
+        const userIds = usuariosData.map((u) => u.id);
+        const reservasData = await getAllReservas(userIds);
+        if (!isCancelled) setReservas(reservasData);
       })
       .catch((err) => {
         if (!isCancelled) setError((err as Error).message);
@@ -157,20 +162,22 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Card 4: Reservas y Finanzas (En Desarrollo) */}
-        <Card className="hover:shadow-md transition-all duration-200 bg-gray-50/50 border-dashed">
+        {/* Card 4: Reservas */}
+        <Card
+          onClick={() => navigate('/reservas')}
+          className="hover:shadow-md transition-all duration-200 cursor-pointer group"
+        >
           <CardContent className="p-6 flex items-center justify-between">
             <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-gray-400">Reservas y Finanzas</span>
-              <h3 className="text-base font-bold text-amber-700 leading-none flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                En progreso
+              <span className="text-xs font-semibold text-gray-400">Reservas</span>
+              <h3 className="text-2xl font-bold text-gray-900 leading-none">
+                {loading ? <Loader2 className="h-6 w-6 animate-spin text-brand-red" /> : reservas.length}
               </h3>
-              <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-400">
-                <span>Módulos en desarrollo</span>
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-gray-500">
+                <span>Turnos registrados</span>
               </div>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200/60 flex items-center justify-center text-amber-600">
+            <div className="w-12 h-12 rounded-2xl bg-purple-50 border border-purple-100 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
               <CalendarDays className="h-6 w-6" />
             </div>
           </CardContent>

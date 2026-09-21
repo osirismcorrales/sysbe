@@ -13,4 +13,6 @@ public interface PlantillaHorarioRepository extends JpaRepository<PlantillaHorar
     List<PlantillaHorario> findByInstalacionIdAndDiaSemanaOrderByHoraInicio(Long idInstalacion, DiaSemana dia);
 
     List<PlantillaHorario> findByInstalacionId(Long idInstalacion);
+
+    List<PlantillaHorario> findByInstalacionIdOrderByDiaSemanaAscHoraInicioAsc(Long idInstalacion);
 }

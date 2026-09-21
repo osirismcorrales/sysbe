@@ -59,3 +59,5 @@ desktop.ini
 *.war
 !.mvn/wrapper/maven-wrapper.jar
 hs_err_pid*
+.postman
+postman

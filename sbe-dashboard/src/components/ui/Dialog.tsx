@@ -6,9 +6,10 @@ interface DialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   children: React.ReactNode
+  className?: string
 }
 
-export function Dialog({ open, onOpenChange, children }: DialogProps) {
+export function Dialog({ open, onOpenChange, children, className }: DialogProps) {
   React.useEffect(() => {
     if (open) {
       document.body.style.overflow = "hidden"
@@ -31,7 +32,7 @@ export function Dialog({ open, onOpenChange, children }: DialogProps) {
       />
       
       {/* Content Container */}
-      <div className="relative z-50 w-full max-w-lg bg-card text-card-foreground border rounded-xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className={cn("relative z-50 w-full max-w-lg max-h-[90vh] overflow-y-auto bg-card text-card-foreground border rounded-xl shadow-xl animate-in fade-in zoom-in-95 duration-200", className)}>
         <button
           onClick={() => onOpenChange(false)}
           className="absolute right-4 top-4 rounded-xs opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none cursor-pointer"

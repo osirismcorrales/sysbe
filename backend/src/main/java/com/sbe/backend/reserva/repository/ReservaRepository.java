@@ -14,6 +14,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
 
     List<Reserva> findByUsuarioIdUsuarioAndFechaReservaGreaterThanEqual(Long idUsuario, LocalDate fechaDesde);
 
+    List<Reserva> findByInstalacionIdAndFechaReservaAndEstadoIn(Long idInstalacion, LocalDate fechaReserva, List<EstadoReserva> estados);
+
     // Verifica si existe un conflicto al crear una reserva
     @Query("""
             SELECT COUNT(r) > 0
