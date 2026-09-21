@@ -20,6 +20,7 @@ public class Instalacion {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id_instalacion")
     private Long id;
 
     @Column(nullable = false, unique = true, length = 60)
