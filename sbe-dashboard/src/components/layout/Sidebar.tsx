@@ -6,7 +6,6 @@ import {
   UserCheck,
   CalendarDays,
   Dumbbell,
-  ArrowUpDown,
   Wallet,
   ClipboardList,
   Gift,
@@ -35,8 +34,7 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
         { name: 'Usuarios', to: '/usuarios', icon: Users },
         { name: 'Socios', to: '/socios', icon: UserCheck },
         { name: 'Reservas', to: '/reservas', icon: CalendarDays },
-        { name: 'Servicios', to: '/servicios', icon: Dumbbell },
-        { name: 'Ingresos / Egresos', to: '/accesos', icon: ArrowUpDown }
+        { name: 'Instalaciones', to: '/instalaciones', icon: Dumbbell }
       ]
     },
     {

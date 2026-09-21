@@ -4,7 +4,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/Dialog';
 import { Button } from '../../../components/ui/Button';
+import { FechaInput } from '../../../components/ui/FechaInput';
 import { useData, type Socio } from '../../../context/DataContext';
+import { getCategorias, type CategoriaResponseDto } from '../services/sociosApi';
 
 const socioSchema = z.object({
   dni: z.string()
@@ -13,10 +15,12 @@ const socioSchema = z.object({
     .regex(/^\d+$/, 'El DNI debe contener solo números'),
   nombre: z.string().min(3, 'El nombre debe tener al menos 3 caracteres'),
   email: z.string().email('Debe ser un correo electrónico válido'),
-  fechaNacimiento: z.string().min(1, 'La fecha de nacimiento es requerida'),
+  fechaNacimiento: z.string()
+    .min(1, 'La fecha de nacimiento es requerida')
+    .refine((val) => val.length >= 10, { message: 'Complete la fecha (DD/MM/AAAA)' }),
   domicilio: z.string().min(5, 'El domicilio debe tener al menos 5 caracteres'),
-  categoria: z.enum(['Interno', 'Externo', 'No socio']),
-  vinculo: z.enum(['Alumno', 'Docente', 'Nodocente', 'Ninguno'])
+  categoria: z.string().min(1, 'La categoría es requerida'),
+  vinculo: z.string().optional()
 });
 
 type SocioFormValues = z.infer<typeof socioSchema>;
@@ -29,6 +33,13 @@ interface SocioFormModalProps {
 export function SocioFormModal({ open, onOpenChange }: SocioFormModalProps) {
   const { addSocio, socios } = useData();
   const [errorMsg, setErrorMsg] = React.useState<string | null>(null);
+  const [categorias, setCategorias] = React.useState<CategoriaResponseDto[]>([]);
+
+  React.useEffect(() => {
+    if (open) {
+      getCategorias().then(setCategorias).catch(console.error);
+    }
+  }, [open]);
 
   const {
     register,
@@ -73,6 +84,8 @@ export function SocioFormModal({ open, onOpenChange }: SocioFormModalProps) {
 
     const newSocio: Socio = {
       ...data,
+      categoria: (data.categoria as Socio['categoria']) || 'No socio',
+      vinculo: data.vinculo as Socio['vinculo'],
       puntos: 0,
       estado: 'Activo'
     };
@@ -139,10 +152,11 @@ export function SocioFormModal({ open, onOpenChange }: SocioFormModalProps) {
             {/* Fecha de Nacimiento */}
             <div className="flex flex-col gap-1.5">
               <label className="font-semibold text-gray-700">Fecha de Nacimiento</label>
-              <input
-                type="date"
-                {...register('fechaNacimiento')}
-                className="h-9 px-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs"
+              <FechaInput
+                value={watch('fechaNacimiento')}
+                onChange={(val) => setValue('fechaNacimiento', val, { shouldValidate: true })}
+                outputFormat="iso-date"
+                error={!!errors.fechaNacimiento}
               />
               {errors.fechaNacimiento && <p className="text-red-500 font-medium text-[10px]">{errors.fechaNacimiento.message}</p>}
             </div>
@@ -168,9 +182,19 @@ export function SocioFormModal({ open, onOpenChange }: SocioFormModalProps) {
                 {...register('categoria')}
                 className="h-9 px-3 border border-gray-300 bg-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary text-xs"
               >
-                <option value="No socio">No socio</option>
-                <option value="Interno">Socio Interno</option>
-                <option value="Externo">Socio Externo</option>
+                {categorias.length > 0 ? (
+                  categorias.map((c) => (
+                    <option key={c.idCategoria} value={c.tipoSocio}>
+                      {c.etiqueta || (c.vinculoUnse ? `${c.tipoSocio} · ${c.vinculoUnse}` : c.tipoSocio)}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="No socio">No socio</option>
+                    <option value="Interno">Socio Interno</option>
+                    <option value="Externo">Socio Externo</option>
+                  </>
+                )}
               </select>
               {errors.categoria && <p className="text-red-500 font-medium text-[10px]">{errors.categoria.message}</p>}
             </div>

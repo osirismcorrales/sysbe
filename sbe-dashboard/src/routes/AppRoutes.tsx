@@ -6,8 +6,7 @@ import DashboardPage from '../features/dashboard/pages/DashboardPage';
 import UsuariosPage from '../features/usuarios/pages/UsuariosPage';
 import SociosPage from '../features/socios/pages/SociosPage';
 import ReservasPage from '../features/reservas/pages/ReservasPage';
-import ServiciosPage from '../features/servicios/pages/ServiciosPage';
-import AccesosPage from '../features/accesos/pages/AccesosPage';
+import InstalacionesPage from '../features/instalaciones/pages/InstalacionesPage';
 import FinanzasPage from '../features/finanzas/pages/FinanzasPage';
 import EncuestasPage from '../features/encuestas/pages/EncuestasPage';
 import EmpleadosPage from '../features/empleados/pages/EmpleadosPage';
@@ -23,8 +22,8 @@ export function AppRoutes() {
             <Route path="/usuarios" element={<UsuariosPage />} />
             <Route path="/socios" element={<SociosPage />} />
             <Route path="/reservas" element={<ReservasPage />} />
-            <Route path="/servicios" element={<ServiciosPage />} />
-            <Route path="/accesos" element={<AccesosPage />} />
+            <Route path="/instalaciones" element={<InstalacionesPage />} />
+            <Route path="/servicios" element={<Navigate to="/instalaciones" replace />} />
             <Route path="/finanzas" element={<FinanzasPage />} />
             <Route path="/encuestas" element={<EncuestasPage />} />
             <Route path="/empleados" element={<EmpleadosPage />} />

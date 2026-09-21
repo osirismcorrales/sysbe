@@ -2,6 +2,7 @@ package com.sbe.backend.usuario.service;
 
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
+import com.sbe.backend.usuario.dto.UsuarioUpdateDto;
 import com.sbe.backend.usuario.entity.Categoria;
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
@@ -69,7 +70,7 @@ public class UsuarioService {
 
         usuario.setRol(rol);
         usuario.setCategoria(categoria);
-
+        usuario.setEstado(dto.estado());
         usuario.setPasswordHash(
                 passwordEncoder.encode(dto.passwordHash())
         );
@@ -80,7 +81,7 @@ public class UsuarioService {
     }
 
     @Transactional
-    public UsuarioResponseDto actualizar(Long id, UsuarioRequestDto dto) {
+    public UsuarioResponseDto actualizar(Long id, UsuarioUpdateDto dto) {
 
         Usuario usuario = findOrThrow(id);
 
@@ -96,14 +97,10 @@ public class UsuarioService {
                         new IllegalArgumentException("Categoría no encontrada")
                 );
 
+        usuario.setEstado(dto.estado());
         usuario.setRol(rol);
         usuario.setCategoria(categoria);
 
-        if (dto.passwordHash() != null && !dto.passwordHash().isBlank()) {
-            usuario.setPasswordHash(
-                    passwordEncoder.encode(dto.passwordHash())
-            );
-        }
 
         return usuarioMapper.toResponseDto(usuario);
     }

@@ -26,11 +26,15 @@ public class DataInitializer implements CommandLineRunner {
         crearRol("USUARIO", "Reserva servicios y paga cuotas");
 
 // Valores de ejemplo: reemplazá por los reales
-        crearCategoria("INTERNO", "Docente/Estudiante/Nodocente", new BigDecimal("20.00"),
+        crearCategoria("SOCIO_INTERNO", "DOCENTE", new BigDecimal("20.00"),
                 new BigDecimal("3000"), new BigDecimal("8500"), new BigDecimal("30000"));
-        crearCategoria("EXTERNO", "Sin vínculo UNSE", new BigDecimal("0.00"),
+        crearCategoria("SOCIO_INTERNO", "ALUMNO", new BigDecimal("30.00"),
+                new BigDecimal("2500"), new BigDecimal("7000"), new BigDecimal("25000"));
+        crearCategoria("SOCIO_INTERNO", "NODOCENTE", new BigDecimal("20.00"),
+                new BigDecimal("3000"), new BigDecimal("8500"), new BigDecimal("30000"));
+        crearCategoria("SOCIO_EXTERNO", null, new BigDecimal("0.00"),
                 new BigDecimal("7000"), new BigDecimal("20000"), new BigDecimal("70000"));
-        crearCategoria("NO_SOCIO", "Sin membresía", new BigDecimal("0.00"),
+        crearCategoria("NO_SOCIO", null, BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 

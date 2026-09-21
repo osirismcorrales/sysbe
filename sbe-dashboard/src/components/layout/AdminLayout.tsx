@@ -2,12 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
-import SocioFormModal from '../../features/socios/components/SocioFormModal';
 
 export function AdminLayout() {
   const location = useLocation();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isNewSocioOpen, setIsNewSocioOpen] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Close sidebar on navigation (for mobile drawer)
@@ -26,10 +23,9 @@ export function AdminLayout() {
         return 'Gestión de Socios';
       case '/reservas':
         return 'Gestión de Reservas';
+      case '/instalaciones':
       case '/servicios':
-        return 'Gestión de Servicios';
-      case '/accesos':
-        return 'Registro de Ingresos y Egresos';
+        return 'Gestión de Instalaciones';
       case '/finanzas':
         return 'Finanzas y Reportes';
       case '/encuestas':
@@ -43,8 +39,6 @@ export function AdminLayout() {
     }
   };
 
-  const showSearchAndSocio = ['/', '/socios'].includes(location.pathname);
-
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-gray-50 font-sans antialiased">
       {/* Sidebar (Left) */}
@@ -55,23 +49,14 @@ export function AdminLayout() {
         {/* Header */}
         <Header
           title={getPageTitle(location.pathname)}
-          onNewSocioClick={showSearchAndSocio ? () => setIsNewSocioOpen(true) : undefined}
-          searchQuery={showSearchAndSocio ? searchQuery : undefined}
-          onSearchChange={showSearchAndSocio ? setSearchQuery : undefined}
           onMenuClick={() => setIsSidebarOpen(true)}
         />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 md:p-8">
-          <Outlet context={{ searchQuery }} />
+          <Outlet />
         </main>
       </div>
-
-      {/* Global Modals */}
-      <SocioFormModal
-        open={isNewSocioOpen}
-        onOpenChange={setIsNewSocioOpen}
-      />
     </div>
   );
 }

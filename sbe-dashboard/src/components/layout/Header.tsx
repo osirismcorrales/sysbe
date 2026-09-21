@@ -4,7 +4,7 @@ import { Button } from '../ui/Button';
 
 interface HeaderProps {
   title: string;
-  subtitle?: string;
+  subtitle?: string | null;
   onNewSocioClick?: () => void;
   searchQuery?: string;
   onSearchChange?: (query: string) => void;
@@ -13,7 +13,7 @@ interface HeaderProps {
 
 export function Header({
   title,
-  subtitle = "Polideportivo UNSE - Mayo 2026",
+  subtitle,
   onNewSocioClick,
   searchQuery,
   onSearchChange,
@@ -38,9 +38,11 @@ export function Header({
           <h1 className="text-base sm:text-lg md:text-xl font-bold text-gray-900 tracking-tight m-0 p-0 leading-none">
             {title}
           </h1>
-          <span className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1">
-            {subtitle}
-          </span>
+          {subtitle && (
+            <span className="text-[10px] sm:text-xs text-gray-400 font-medium mt-1">
+              {subtitle}
+            </span>
+          )}
         </div>
       </div>
 

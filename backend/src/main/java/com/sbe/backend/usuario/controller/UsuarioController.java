@@ -2,6 +2,7 @@ package com.sbe.backend.usuario.controller;
 
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
+import com.sbe.backend.usuario.dto.UsuarioUpdateDto;
 import com.sbe.backend.usuario.service.UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -43,7 +44,7 @@ public class UsuarioController {
     @PutMapping("/{id}")
     public ResponseEntity<UsuarioResponseDto> actualizar(
             @PathVariable Long id,
-            @Valid @RequestBody UsuarioRequestDto dto) {
+            @Valid @RequestBody UsuarioUpdateDto dto) {
         return ResponseEntity.ok(usuarioService.actualizar(id, dto));
     }
 
