@@ -3,6 +3,7 @@ package com.sbe.backend.usuario.repository;
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -24,7 +25,7 @@ import java.util.Optional;
  *  - deleteById(id)         → DELETE por PK
  *  - existsById(id)         → SELECT COUNT > 0
  */
-public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpecificationExecutor<Usuario> {
 
     /**
      * Busca un usuario por email.

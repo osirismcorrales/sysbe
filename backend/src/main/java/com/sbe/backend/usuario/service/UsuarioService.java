@@ -129,6 +129,7 @@ public class UsuarioService {
             }
             usuario.setEmail(dto.email());
         }
+        
 
         // 3. Modificar únicamente los datos permitidos por la regla RS-1.4
         usuario.setNombreCompleto(dto.nombreCompleto());

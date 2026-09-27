@@ -1,0 +1,15 @@
+﻿# IntelliJ IDEA
+.idea/
+*.iml
+
+# Postman
+.postman/
+backend/.postman/
+postman/
+backend/postman/
+
+# Build y dependencias
+target/
+node_modules/
+dist/
+.DS_Store
