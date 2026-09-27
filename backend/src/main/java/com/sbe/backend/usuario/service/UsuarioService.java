@@ -4,6 +4,7 @@ import com.sbe.backend.componentes.ValidadorDni;
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
 import com.sbe.backend.usuario.dto.UsuarioUpdateDto;
+import com.sbe.backend.usuario.dto.UsuarioUpdateMeDto;
 import com.sbe.backend.usuario.entity.Categoria;
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
@@ -112,6 +113,34 @@ public class UsuarioService {
         usuario.setCategoria(categoria);
 
 
+        return usuarioMapper.toResponseDto(usuario);
+    }
+
+    @Transactional
+    public UsuarioResponseDto actualizarPerfilPropio(String emailActual, UsuarioUpdateMeDto dto) {
+        // 1. Buscar al usuario actual usando el email verificado de la sesión
+        Usuario usuario = usuarioRepository.findByEmail(emailActual)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con el email: " + emailActual));
+
+        // 2. Si intenta cambiar su email, verificar que nadie más lo esté usando
+        if (!usuario.getEmail().equalsIgnoreCase(dto.email())) {
+            if (usuarioRepository.existsByEmail(dto.email())) {
+                throw new IllegalArgumentException("Ya existe un usuario con el email: " + dto.email());
+            }
+            usuario.setEmail(dto.email());
+        }
+
+        // 3. Modificar únicamente los datos permitidos por la regla RS-1.4
+        usuario.setNombreCompleto(dto.nombreCompleto());
+        usuario.setFechaNacimiento(dto.fechaNacimiento());
+        usuario.setDomicilio(dto.domicilio());
+
+        // 4. Si proporcionó una nueva contraseña, hashearla antes de guardarla
+        if (dto.password() != null && !dto.password().isBlank()) {
+            usuario.setPasswordHash(passwordEncoder.encode(dto.password()));
+        }
+
+        // Con @Transactional los cambios se sincronizan automáticamente en la base de datos
         return usuarioMapper.toResponseDto(usuario);
     }
 

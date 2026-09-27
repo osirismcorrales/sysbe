@@ -3,12 +3,14 @@ package com.sbe.backend.usuario.controller;
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
 import com.sbe.backend.usuario.dto.UsuarioUpdateDto;
+import com.sbe.backend.usuario.dto.UsuarioUpdateMeDto;
 import com.sbe.backend.usuario.service.UsuarioService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -46,6 +48,19 @@ public class UsuarioController {
             @PathVariable Long id,
             @Valid @RequestBody UsuarioUpdateDto dto) {
         return ResponseEntity.ok(usuarioService.actualizar(id, dto));
+    }
+
+    // PUT http://localhost:8080/api/usuarios/me
+    @PutMapping("/me")
+    public ResponseEntity<UsuarioResponseDto> actualizarPerfilPropio(
+            Authentication authentication,
+            @Valid @RequestBody UsuarioUpdateMeDto dto) {
+
+        // Obtenemos el identificador (email) del usuario actualmente autenticado
+        String emailActual = authentication.getName();
+
+        UsuarioResponseDto usuarioActualizado = usuarioService.actualizarPerfilPropio(emailActual, dto);
+        return ResponseEntity.ok(usuarioActualizado);
     }
 
     // DELETE http://localhost:8080/api/usuarios/{id} (baja lógica)

@@ -1,5 +1,7 @@
 package com.sbe.backend.config;
 
+import com.sbe.backend.instalacion.entity.Instalacion;
+import com.sbe.backend.instalacion.repository.InstalacionRepository;
 import com.sbe.backend.usuario.entity.Categoria;
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.repository.CategoriaRepository;
@@ -17,6 +19,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final RolRepository rolRepository;
     private final CategoriaRepository categoriaRepository;
+    private final InstalacionRepository instalacionRepository;
 
     @Override
     @Transactional
@@ -36,6 +39,12 @@ public class DataInitializer implements CommandLineRunner {
                 new BigDecimal("7000"), new BigDecimal("20000"), new BigDecimal("70000"));
         crearCategoria("NO_SOCIO", null, BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+
+        // Inicializar instalaciones de prueba
+        crearInstalacion("Cancha de Fútbol 5", "Cancha de césped sintético iluminada", "ACTIVO", new BigDecimal("8000.00"), 60);
+        crearInstalacion("Cancha de Pádel", "Cancha de blindex con iluminación LED", "ACTIVO", new BigDecimal("6000.00"), 90);
+        crearInstalacion("Quincho Principal", "Quincho con asador para eventos", "ACTIVO", new BigDecimal("15000.00"), 240);
+        crearInstalacion("Cancha de Básquet", "En mantenimiento de piso parquet", "MANTENIMIENTO", new BigDecimal("5000.00"), 60);
     }
 
     private void crearRol(String nombre, String descripcion) {
@@ -58,6 +67,20 @@ public class DataInitializer implements CommandLineRunner {
             c.setCuotaTrimestral(trimestral);
             c.setCuotaAnual(anual);
             categoriaRepository.save(c);
+        }
+    }
+
+    private void crearInstalacion(String nombre, String descripcion, String estado, BigDecimal precioBase, Integer duracionMinutos) {
+        // En InstalacionRepository puedes agregar el método: boolean existsByNombre(String nombre);
+        if (instalacionRepository.findAll().stream().noneMatch(i -> i.getNombre().equalsIgnoreCase(nombre))) {
+            Instalacion instalacion = Instalacion.builder()
+                    .nombre(nombre)
+                    .descripcion(descripcion)
+                    .estado(estado)
+                    .precioBase(precioBase)
+                    .duracionMinutos(duracionMinutos)
+                    .build();
+            instalacionRepository.save(instalacion);
         }
     }
 }
