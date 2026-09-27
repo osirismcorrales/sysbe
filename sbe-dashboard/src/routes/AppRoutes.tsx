@@ -11,28 +11,34 @@ import FinanzasPage from '../features/finanzas/pages/FinanzasPage';
 import EncuestasPage from '../features/encuestas/pages/EncuestasPage';
 import EmpleadosPage from '../features/empleados/pages/EmpleadosPage';
 import PuntosPage from '../features/puntos/pages/PuntosPage';
+import LoginPage from '../features/auth/pages/LoginPage';
+import ProtectedRoute from '../components/auth/ProtectedRoute';
 
 export function AppRoutes() {
   return (
     <DataProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Routes>
-          <Route element={<AdminLayout />}>
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/usuarios" element={<UsuariosPage />} />
-            <Route path="/socios" element={<SociosPage />} />
-            <Route path="/reservas" element={<ReservasPage />} />
-            <Route path="/instalaciones" element={<InstalacionesPage />} />
-            <Route path="/servicios" element={<Navigate to="/instalaciones" replace />} />
-            <Route path="/finanzas" element={<FinanzasPage />} />
-            <Route path="/encuestas" element={<EncuestasPage />} />
-            <Route path="/empleados" element={<EmpleadosPage />} />
-            <Route path="/puntos" element={<PuntosPage />} />
+          <Route path="/login" element={<LoginPage />} />
 
-            {/* Redirects from old routes */}
-            <Route path="/pagos" element={<Navigate to="/finanzas" replace />} />
-            <Route path="/mantenimiento" element={<Navigate to="/finanzas" replace />} />
-            <Route path="/reportes" element={<Navigate to="/finanzas" replace />} />
+          <Route element={<ProtectedRoute />}>
+            <Route element={<AdminLayout />}>
+              <Route path="/" element={<DashboardPage />} />
+              <Route path="/usuarios" element={<UsuariosPage />} />
+              <Route path="/socios" element={<SociosPage />} />
+              <Route path="/reservas" element={<ReservasPage />} />
+              <Route path="/instalaciones" element={<InstalacionesPage />} />
+              <Route path="/servicios" element={<Navigate to="/instalaciones" replace />} />
+              <Route path="/finanzas" element={<FinanzasPage />} />
+              <Route path="/encuestas" element={<EncuestasPage />} />
+              <Route path="/empleados" element={<EmpleadosPage />} />
+              <Route path="/puntos" element={<PuntosPage />} /> 
+
+              {/* Redirects from old routes */}
+              <Route path="/pagos" element={<Navigate to="/finanzas" replace />} />
+              <Route path="/mantenimiento" element={<Navigate to="/finanzas" replace />} />
+              <Route path="/reportes" element={<Navigate to="/finanzas" replace />} />
+            </Route>
           </Route>
         </Routes>
       </BrowserRouter>

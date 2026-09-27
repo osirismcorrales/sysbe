@@ -38,7 +38,7 @@ export class ApiError extends Error {
     backendError?: BackendErrorResponse
   ) {
     const mensaje = backendError?.mensaje || body || statusText;
-    super(`[${status}] ${mensaje}`);
+    super(mensaje);
     this.name = 'ApiError';
     this.status = status;
     this.statusText = statusText;
