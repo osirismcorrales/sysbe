@@ -20,9 +20,16 @@ public class InstalacionController {
     private final InstalacionService instalacionService;
 
 
-    @GetMapping
+    // Para administradores: todas (activas, inactivas, en mantenimiento)
+    @GetMapping("/todas") // -> GET /api/instalaciones/todas
     public ResponseEntity<List<InstalacionResponseDto>> getAllInstalaciones() {
         return ResponseEntity.ok(instalacionService.findAll());
+    }
+
+    // Para socios/usuarios: solo operativas
+    @GetMapping // -> GET /api/instalaciones
+    public ResponseEntity<List<InstalacionResponseDto>> listarDisponibles() {
+        return ResponseEntity.ok(instalacionService.listarDisponibles());
     }
 
     @GetMapping("/{id}")
