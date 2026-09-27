@@ -1,5 +1,6 @@
 package com.sbe.backend.usuario.service;
 
+import com.sbe.backend.componentes.ValidadorDni;
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
 import com.sbe.backend.usuario.dto.UsuarioUpdateDto;
@@ -56,6 +57,10 @@ public class UsuarioService {
             );
         }
 
+        if (!ValidadorDni.esValido(dto.dni())) {
+            throw new IllegalArgumentException("El DNI ingresado no tiene un formato válido");
+        }
+
         Usuario usuario = usuarioMapper.toEntity(dto);
 
         Rol rol = rolRepository.findById(dto.rolId())
@@ -82,6 +87,11 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioResponseDto actualizar(Long id, UsuarioUpdateDto dto) {
+
+
+        if (!ValidadorDni.esValido(dto.dni())) {
+            throw new IllegalArgumentException("El DNI ingresado no tiene un formato válido");
+        }
 
         Usuario usuario = findOrThrow(id);
 
