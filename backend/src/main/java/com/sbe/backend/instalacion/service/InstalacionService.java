@@ -53,6 +53,15 @@ public class InstalacionService {
 
     }
 
+    @Transactional(readOnly = true)
+    public List<InstalacionResponseDto> listarDisponibles() {
+        // Buscamos las instalaciones en estado operativo/activo
+        return instalacionRepository.findByEstadoIgnoreCase("ACTIVO")
+                .stream()
+                .map(instalacionMapper::toResponseDto)
+                .toList();
+    }
+
     @Transactional
     public void delete(Long id) {
         Instalacion instalacion = instalacionRepository.findById(id).orElseThrow(() -> new RuntimeException("No existe la instalacion con el id: " + id));
