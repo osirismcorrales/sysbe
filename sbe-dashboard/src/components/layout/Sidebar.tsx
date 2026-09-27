@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -21,22 +21,6 @@ interface SidebarProps {
 }
 
 export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
-  
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    const confirmed = window.confirm(
-      '¿Está seguro de que desea cerrar sesión?'
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    localStorage.removeItem('token');
-    navigate('/login');
-  };
-  
   const menuSections = [
     {
       title: 'PRINCIPAL',
@@ -164,7 +148,6 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
           </div>
           <button 
             title="Cerrar sesión"
-            onClick={handleLogout}
             className="text-red-300/40 hover:text-red-100 p-1.5 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="h-4 w-4" />

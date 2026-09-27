@@ -10,7 +10,11 @@ import com.sbe.backend.usuario.mapper.UsuarioMapper;
 import com.sbe.backend.usuario.repository.CategoriaRepository;
 import com.sbe.backend.usuario.repository.RolRepository;
 import com.sbe.backend.usuario.repository.UsuarioRepository;
+import com.sbe.backend.usuario.specification.UsuarioSpecification;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,18 +22,30 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.NoSuchElementException;
 
-import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
 import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.ACTIVO;
+import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
 
 @Service
 @RequiredArgsConstructor
-
 public class UsuarioService {
+
     private final UsuarioRepository usuarioRepository;
     private final UsuarioMapper usuarioMapper;
     private final RolRepository rolRepository;
     private final CategoriaRepository categoriaRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Transactional(readOnly = true)
+    public Page<UsuarioResponseDto> listarConFiltros(
+            String busqueda,
+            Long rolId,
+            Usuario.EstadoUsuario estado,
+            Pageable pageable) {
+
+        Specification<Usuario> spec = UsuarioSpecification.conFiltros(busqueda, rolId, estado);
+        return usuarioRepository.findAll(spec, pageable)
+                .map(usuarioMapper::toResponseDto);
+    }
 
     @Transactional(readOnly = true)
     public List<UsuarioResponseDto> listarTodos() {
@@ -45,11 +61,8 @@ public class UsuarioService {
         return usuarioMapper.toResponseDto(usuario);
     }
 
-
-
     @Transactional
     public UsuarioResponseDto crear(UsuarioRequestDto dto) {
-
         if (usuarioRepository.existsByEmail(dto.email())) {
             throw new IllegalArgumentException(
                     "Ya existe un usuario con el email: " + dto.email()
@@ -82,7 +95,6 @@ public class UsuarioService {
 
     @Transactional
     public UsuarioResponseDto actualizar(Long id, UsuarioUpdateDto dto) {
-
         Usuario usuario = findOrThrow(id);
 
         usuario.setNombreCompleto(dto.nombreCompleto());
@@ -100,7 +112,6 @@ public class UsuarioService {
         usuario.setEstado(dto.estado());
         usuario.setRol(rol);
         usuario.setCategoria(categoria);
-
 
         return usuarioMapper.toResponseDto(usuario);
     }

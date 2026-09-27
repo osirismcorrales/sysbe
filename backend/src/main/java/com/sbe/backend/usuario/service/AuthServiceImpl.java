@@ -9,7 +9,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
-import java.util.NoSuchElementException;
 
 @Service
 public class AuthServiceImpl implements AuthService {
@@ -18,7 +17,7 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtils jwtUtils;
 
-    public AuthServiceImpl(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils){
+    public AuthServiceImpl(UsuarioRepository usuarioRepository, PasswordEncoder passwordEncoder, JwtUtils jwtUtils) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtUtils = jwtUtils;
@@ -27,25 +26,39 @@ public class AuthServiceImpl implements AuthService {
     @Override
     public LoginResponseDto login(LoginRequestDto request) {
 
-        // Busca usuario por DNI
+        // 1. Busca usuario por DNI
         Usuario usuario = usuarioRepository.findByDni(request.dni())
-                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales incorrectas"));
 
-        // Si existe usuario, comprueba la contraseña con BCrypt
-        if(!passwordEncoder.matches(request.password(), usuario.getPasswordHash())){
-            throw new IllegalArgumentException("Contraseña incorrecta");
+        // 2. Comprueba la contraseña con BCrypt
+        if (!passwordEncoder.matches(request.password(), usuario.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Credenciales incorrectas");
         }
 
-        // Si la contraseña es correcta, se obtiene el rol del usuario
-        String rol = usuario.getRol().getNombreRol();
+        // 3. Comprueba que el usuario no esté dado de baja
+        if (usuario.getEstado() == Usuario.EstadoUsuario.DE_BAJA) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "La cuenta se encuentra dada de baja.");
+        }
 
-        // Se genera el JWT (el token que luego se enviará al frontend)
+        // 4. Obtiene y valida el rol
+        if (usuario.getRol() == null || usuario.getRol().getNombreRol() == null) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Usuario sin rol asignado.");
+        }
+
+        String rol = usuario.getRol().getNombreRol().toUpperCase().trim();
+
+        // 5. RESTRICCIÓN CLAVE: Bloquear si es SOCIO / CLIENTE
+        if ("SOCIO".equals(rol) || "CLIENTE".equals(rol)) {
+            throw new ResponseStatusException(
+                    HttpStatus.FORBIDDEN,
+                    "Acceso denegado: Los socios no tienen autorización para ingresar al panel de administración."
+            );
+        }
+
+        // 6. Genera el JWT
         String token = jwtUtils.generateToken(usuario.getDni(), rol);
 
-        // Se devuelve el token
+        // 7. Retorna el DTO
         return new LoginResponseDto(token);
     }
-
 }
-
-
