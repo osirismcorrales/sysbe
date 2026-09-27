@@ -32,9 +32,9 @@ public class DataInitializer implements CommandLineRunner {
                 new BigDecimal("2500"), new BigDecimal("7000"), new BigDecimal("25000"));
         crearCategoria("SOCIO_INTERNO", "NODOCENTE", new BigDecimal("20.00"),
                 new BigDecimal("3000"), new BigDecimal("8500"), new BigDecimal("30000"));
-        crearCategoria("SOCIO_EXTERNO", null, new BigDecimal("0.00"),
+        crearCategoria("SOCIO_EXTERNO", "SIN_VINCULO_UNSE", new BigDecimal("0.00"),
                 new BigDecimal("7000"), new BigDecimal("20000"), new BigDecimal("70000"));
-        crearCategoria("NO_SOCIO", null, BigDecimal.ZERO,
+        crearCategoria("NO_SOCIO", "SIN_VINCULO_UNSE", BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
     }
 
