@@ -13,6 +13,8 @@ import com.sbe.backend.usuario.repository.CategoriaRepository;
 import com.sbe.backend.usuario.repository.RolRepository;
 import com.sbe.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -129,7 +131,7 @@ public class UsuarioService {
             }
             usuario.setEmail(dto.email());
         }
-        
+
 
         // 3. Modificar únicamente los datos permitidos por la regla RS-1.4
         usuario.setNombreCompleto(dto.nombreCompleto());
@@ -154,5 +156,9 @@ public class UsuarioService {
     private Usuario findOrThrow(Long id) {
         return usuarioRepository.findById(id)
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con id: " + id));
+    }
+
+    public Page<UsuarioResponseDto> listarConFiltros(String busqueda, Long idRol, Usuario.EstadoUsuario estado, Pageable pageable) {
+        return Page.empty(pageable);
     }
 }

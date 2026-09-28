@@ -49,7 +49,8 @@ apiClient.interceptors.response.use(
     const errorMessage =
       error.response?.data?.message || error.message || "Error de red inesperado";
 
-    if (__DEV__) {
+    // Solo registrar warning en desarrollo si no es un 401/403 esperado
+    if (__DEV__ && status !== 401 && status !== 403) {
       console.warn(`[API ERROR ${status || "NETWORK"}]: ${errorMessage}`);
     }
 

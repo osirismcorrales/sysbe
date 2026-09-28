@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   StatusBar,
   Alert,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
+import { useUserById } from "../../../api/hooks/useUserQuery";
+import { mapUsuarioDtoToUser } from "../../../data/types";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { ProfileStackParamList } from "../../../navigation/ProfileStack";
 import type { CompositeScreenProps } from "@react-navigation/native";
@@ -25,6 +28,10 @@ type Props = CompositeScreenProps<
 
 export default function ProfileScreen({ navigation }: Props) {
   const { user, totalPoints, points, promotions, redeemPromotion, logout } = useApp();
+
+  // Consulta al backend Spring Boot: GET /api/usuarios/{id}
+  const { data: userDto, isFetching, refetch } = useUserById(user.id);
+  const displayUser = userDto ? mapUsuarioDtoToUser(userDto) : user;
 
   const handleLogout = () => {
     Alert.alert("Cerrar sesión", "¿Estás seguro que querés cerrar sesión?", [
@@ -62,7 +69,18 @@ export default function ProfileScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: Spacing["3xl"] }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: Spacing["3xl"] }}
+        refreshControl={
+          <RefreshControl
+            refreshing={isFetching}
+            onRefresh={refetch}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
 
         {/* Header */}
         <View style={styles.header}>
@@ -74,15 +92,17 @@ export default function ProfileScreen({ navigation }: Props) {
           <View style={styles.avatarCircle}>
             <Ionicons name="person" size={36} color={Colors.primary} />
           </View>
-          <Text style={styles.profileName}>{user.name}</Text>
-          <Text style={styles.profileDni}>DNI: {user.dni}</Text>
+          <Text style={styles.profileName}>{displayUser.name || "Usuario SBE"}</Text>
+          <Text style={styles.profileDni}>
+            {displayUser.dni ? `DNI: ${displayUser.dni}` : "Sin DNI registrado"}
+          </Text>
           <View style={styles.profileBadgesRow}>
             <View style={[styles.profileBadge, { backgroundColor: Colors.primaryLight }]}>
-              <Text style={styles.profileBadgeText}>Socio {user.category}</Text>
+              <Text style={styles.profileBadgeText}>Socio {displayUser.category || "General"}</Text>
             </View>
-            <View style={[styles.profileBadge, { backgroundColor: user.status === "Activo" ? Colors.successLight : Colors.errorLight }]}>
-              <Text style={[styles.profileBadgeTextDark, { color: user.status === "Activo" ? Colors.success : Colors.error }]}>
-                {user.status}
+            <View style={[styles.profileBadge, { backgroundColor: displayUser.status === "Activo" ? Colors.successLight : Colors.errorLight }]}>
+              <Text style={[styles.profileBadgeTextDark, { color: displayUser.status === "Activo" ? Colors.success : Colors.error }]}>
+                {displayUser.status || "Activo"}
               </Text>
             </View>
           </View>
@@ -111,46 +131,60 @@ export default function ProfileScreen({ navigation }: Props) {
             </View>
             <View style={styles.pointsDivider} />
             <Text style={styles.pointsHistoryTitle}>Últimos movimientos</Text>
-            {recentPoints.map((p) => (
-              <View key={p.id} style={styles.pointRow}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.pointDesc}>{p.description}</Text>
-                  <Text style={styles.pointDate}>{p.date}</Text>
-                </View>
-                <Text style={[styles.pointAmount, { color: p.amount > 0 ? Colors.success : Colors.error }]}>
-                  {p.amount > 0 ? "+" : ""}{p.amount}
-                </Text>
+            {recentPoints.length === 0 ? (
+              <View style={styles.emptyPointsRow}>
+                <Ionicons name="time-outline" size={18} color={Colors.textDisabled} />
+                <Text style={styles.emptyPointsText}>Sin movimientos de puntos registrados</Text>
               </View>
-            ))}
+            ) : (
+              recentPoints.map((p) => (
+                <View key={p.id} style={styles.pointRow}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.pointDesc}>{p.description}</Text>
+                    <Text style={styles.pointDate}>{p.date}</Text>
+                  </View>
+                  <Text style={[styles.pointAmount, { color: p.amount > 0 ? Colors.success : Colors.error }]}>
+                    {p.amount > 0 ? "+" : ""}{p.amount}
+                  </Text>
+                </View>
+              ))
+            )}
           </View>
         </View>
 
         {/* Promociones */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Canjear promociones</Text>
-          {promotions.filter((p) => p.active).map((promo) => (
-            <View key={promo.id} style={styles.promoCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.promoTitle}>{promo.title}</Text>
-                <Text style={styles.promoDesc}>{promo.description}</Text>
-              </View>
-              <TouchableOpacity
-                style={[
-                  styles.promoBtn,
-                  totalPoints < promo.pointsCost && styles.promoBtnDisabled,
-                ]}
-                onPress={() => handleRedeem(promo.id, promo.title, promo.pointsCost)}
-                activeOpacity={0.8}
-              >
-                <Text style={[
-                  styles.promoBtnText,
-                  totalPoints < promo.pointsCost && styles.promoBtnTextDisabled,
-                ]}>
-                  {promo.pointsCost} pts
-                </Text>
-              </TouchableOpacity>
+          {promotions.filter((p) => p.active).length === 0 ? (
+            <View style={styles.emptyPromosCard}>
+              <Ionicons name="gift-outline" size={32} color={Colors.textDisabled} />
+              <Text style={styles.emptyPromosText}>No hay promociones activas por el momento</Text>
             </View>
-          ))}
+          ) : (
+            promotions.filter((p) => p.active).map((promo) => (
+              <View key={promo.id} style={styles.promoCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.promoTitle}>{promo.title}</Text>
+                  <Text style={styles.promoDesc}>{promo.description}</Text>
+                </View>
+                <TouchableOpacity
+                  style={[
+                    styles.promoBtn,
+                    totalPoints < promo.pointsCost && styles.promoBtnDisabled,
+                  ]}
+                  onPress={() => handleRedeem(promo.id, promo.title, promo.pointsCost)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[
+                    styles.promoBtnText,
+                    totalPoints < promo.pointsCost && styles.promoBtnTextDisabled,
+                  ]}>
+                    {promo.pointsCost} pts
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))
+          )}
         </View>
 
         {/* QR y Logout */}
@@ -399,5 +433,31 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.error,
+  },
+  emptyPointsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  },
+  emptyPointsText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+  },
+  emptyPromosCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.xs,
+  },
+  emptyPromosText: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: "center",
   },
 });

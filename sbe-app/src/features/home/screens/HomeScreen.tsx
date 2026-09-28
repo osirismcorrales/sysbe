@@ -7,6 +7,7 @@ import {
   StatusBar,
   TouchableOpacity,
   Platform,
+  RefreshControl,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -36,7 +37,7 @@ const STATUS_BADGE: Record<
 };
 
 export default function HomeScreen({ navigation }: Props) {
-  const { user, totalPoints, reservations } = useApp();
+  const { user, totalPoints, reservations, refreshAll, isLoadingUser } = useApp();
   const insets = useSafeAreaInsets();
 
   const latestReservations = reservations
@@ -80,21 +81,31 @@ export default function HomeScreen({ navigation }: Props) {
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} translucent />
-      <ScrollView showsVerticalScrollIndicator={false}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isLoadingUser}
+            onRefresh={refreshAll}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+      >
 
         {/* Header Unificado y Centrado */}
         <View style={[styles.headerContainer, { paddingTop: insets.top + Spacing.base }]}>
           <Text style={styles.headerGreeting}>{greeting},</Text>
-          <Text style={styles.headerName}>{user.name}</Text>
+          <Text style={styles.headerName}>{user.name || "Estudiante UNSE"}</Text>
           <Text style={styles.headerInfo}>
-            DNI {user.dni} · {user.classification}
+            {user.dni ? `DNI ${user.dni} · ` : ""}{user.classification || "Bienestar Estudiantil"}
           </Text>
 
           {/* Badges Centrados */}
           <View style={styles.badgesRowCentered}>
             <View style={[styles.badge, { backgroundColor: Colors.primaryLight }]}>
               <Ionicons name="checkmark-circle" size={14} color={Colors.textOnPrimary} />
-              <Text style={styles.badgeTextWhite}> Socio {user.category}</Text>
+              <Text style={styles.badgeTextWhite}> Socio {user.category || "General"}</Text>
             </View>
             <View style={[styles.badge, { backgroundColor: Colors.accent }]}>
               <Ionicons name="star" size={14} color={Colors.textOnAccent} />

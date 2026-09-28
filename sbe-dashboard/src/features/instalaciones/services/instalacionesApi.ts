@@ -55,10 +55,15 @@ const RESOURCE = '/instalaciones';
 
 // ─── API Methods ─────────────────────────────────────────────────────────────
 
-/** GET /api/instalaciones */
+/** GET /api/instalaciones (intenta /todas para ver todos los estados en el panel) */
 export async function getInstalaciones(): Promise<InstalacionResponseDto[]> {
-  const data = await apiClient.get<any[]>(RESOURCE);
-  return (Array.isArray(data) ? data : []).map(normalizeInstalacion);
+  try {
+    const data = await apiClient.get<any[]>('/instalaciones/todas');
+    return (Array.isArray(data) ? data : []).map(normalizeInstalacion);
+  } catch {
+    const data = await apiClient.get<any[]>(RESOURCE);
+    return (Array.isArray(data) ? data : []).map(normalizeInstalacion);
+  }
 }
 
 /** GET /api/instalaciones/:id */

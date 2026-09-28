@@ -5,10 +5,8 @@
  * la URL base del backend y las rutas de los endpoints.
  */
 
-// Si existe la variable de entorno EXPO_PUBLIC_API_URL (por ejemplo en .env), se usará esa;
-// de lo contrario, se usa la URL default configurable aquí.
 export const API_BASE_URL: string =
-  process.env.EXPO_PUBLIC_API_URL || "http://10.0.2.2:3000/api";
+  process.env.EXPO_PUBLIC_API_URL || "http://192.168.1.10:8080/api";
 
 /**
  * Catálogo centralizado de endpoints de la aplicación.
@@ -22,12 +20,13 @@ export const ENDPOINTS = {
     LOGOUT: "/auth/logout",
   },
 
-  // Usuario y Perfil
+  // Usuario y Perfil (Spring Boot: @RequestMapping("/api/usuarios"))
   USER: {
-    PROFILE: "/users/profile",
-    UPDATE_PROFILE: "/users/profile",
-    MEMBERSHIP: "/users/membership",
-    POINTS: "/users/points",
+    BY_ID: (id: string | number) => `/usuarios/${id}`,
+    UPDATE_ME: "/usuarios/me",
+    PROFILE: "/usuarios/me",
+    MEMBERSHIP: "/usuarios/membership",
+    POINTS: "/usuarios/points",
   },
 
   // Servicios deportivos/instalaciones

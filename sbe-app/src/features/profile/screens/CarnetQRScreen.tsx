@@ -60,15 +60,15 @@ export default function CarnetQRScreen({ navigation }: Props) {
           <View style={styles.dataSection}>
             <View style={styles.dataRow}>
               <Text style={styles.dataLabel}>Nombre</Text>
-              <Text style={styles.dataValue}>{user.name}</Text>
+              <Text style={styles.dataValue}>{user.name || "Usuario SBE"}</Text>
             </View>
             <View style={styles.dataRow}>
               <Text style={styles.dataLabel}>DNI</Text>
-              <Text style={styles.dataValue}>{user.dni}</Text>
+              <Text style={styles.dataValue}>{user.dni || "—"}</Text>
             </View>
             <View style={styles.dataRow}>
               <Text style={styles.dataLabel}>Categoría</Text>
-              <Text style={styles.dataValue}>{user.category} · {user.classification}</Text>
+              <Text style={styles.dataValue}>{user.category || "General"} · {user.classification || "Alumno"}</Text>
             </View>
             <View style={styles.dataRow}>
               <Text style={styles.dataLabel}>Estado</Text>

@@ -9,8 +9,9 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  TouchableWithoutFeedback,
   Keyboard,
+  ActivityIndicator,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -33,12 +34,12 @@ export default function LoginScreen({ navigation }: Props) {
   const validate = (): boolean => {
     const newErrors: { dni?: string; password?: string } = {};
     if (!dni.trim()) {
-      newErrors.dni = "El DNI es obligatorio";
+      newErrors.dni = "El DNI no puede estar vacío";
     } else if (!/^\d{7,8}$/.test(dni.trim())) {
-      newErrors.dni = "Ingresá un DNI válido (7-8 dígitos)";
+      newErrors.dni = "El DNI debe tener entre 7 y 8 números";
     }
     if (!password.trim()) {
-      newErrors.password = "La contraseña es obligatoria";
+      newErrors.password = "La contraseña no puede estar vacía";
     } else if (password.length < 4) {
       newErrors.password = "Mínimo 4 caracteres";
     }
@@ -46,10 +47,29 @@ export default function LoginScreen({ navigation }: Props) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleLogin = () => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async () => {
     if (!validate()) return;
-    login();
-    navigation.replace("App");
+    setIsLoading(true);
+    try {
+      // POST http://localhost:8080/api/auth/login con LoginRequestDto
+      await login({
+        dni: dni.trim(),
+        password: password.trim(),
+      });
+      navigation.replace("App");
+    } catch (err: any) {
+      const errorMsg =
+        err?.message ||
+        "No se pudo iniciar sesión. Verificá que tu DNI y contraseña sean correctos.";
+
+      Alert.alert("Error de autenticación", errorMsg, [
+        { text: "Entendido" },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -58,7 +78,7 @@ export default function LoginScreen({ navigation }: Props) {
 
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.keyboardAvoiding}>
-          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
             <View style={styles.innerLayout}>
               {/* ── Header con fondo rojo institucional ── */}
               <View style={styles.header}>
@@ -154,11 +174,16 @@ export default function LoginScreen({ navigation }: Props) {
 
                 {/* Botón Ingresar */}
                 <TouchableOpacity
-                  style={styles.btnPrimary}
+                  style={[styles.btnPrimary, isLoading && { opacity: 0.7 }]}
                   onPress={handleLogin}
+                  disabled={isLoading}
                   activeOpacity={0.85}
                 >
-                  <Text style={styles.btnPrimaryText}>Ingresar</Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={Colors.surface} />
+                  ) : (
+                    <Text style={styles.btnPrimaryText}>Ingresar</Text>
+                  )}
                 </TouchableOpacity>
 
                 {/* Divisor */}
@@ -172,8 +197,11 @@ export default function LoginScreen({ navigation }: Props) {
                 <TouchableOpacity
                   style={styles.btnGuarani}
                   onPress={() => {
-                    login();
-                    navigation.replace("App");
+                    Alert.alert(
+                      "SIU Guaraní",
+                      "El acceso con credenciales SIU Guaraní se encuentra en proceso de vinculación institucional.",
+                      [{ text: "Entendido" }]
+                    );
                   }}
                   activeOpacity={0.85}
                 >
@@ -196,7 +224,7 @@ export default function LoginScreen({ navigation }: Props) {
                 </TouchableOpacity>
               </View>
             </View>
-          </TouchableWithoutFeedback>
+          </Pressable>
         </View>
       </SafeAreaView>
     </View>

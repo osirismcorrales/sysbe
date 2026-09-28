@@ -1,22 +1,46 @@
 import { apiClient } from "../client";
 import { ENDPOINTS } from "../config";
-import type { User, Membership, PointMovement, Promotion } from "../../data/types";
+import type {
+  User,
+  Membership,
+  PointMovement,
+  Promotion,
+  UsuarioResponseDto,
+  UsuarioUpdateMeDto,
+} from "../../data/types";
 
 export const userService = {
   /**
-   * Obtiene los datos del perfil del usuario actual
+   * Obtiene la información de perfil de un usuario por su ID
+   * GET http://localhost:8080/api/usuarios/{id}
    */
-  async getProfile(): Promise<User> {
-    const response = await apiClient.get<User>(ENDPOINTS.USER.PROFILE);
+  async getById(id: string | number): Promise<UsuarioResponseDto> {
+    const response = await apiClient.get<UsuarioResponseDto>(ENDPOINTS.USER.BY_ID(id));
     return response.data;
   },
 
   /**
-   * Actualiza datos parciales del perfil del usuario
+   * Actualiza el perfil propio del usuario autenticado
+   * PUT http://localhost:8080/api/usuarios/me
    */
-  async updateProfile(partial: Partial<User>): Promise<User> {
-    const response = await apiClient.patch<User>(ENDPOINTS.USER.UPDATE_PROFILE, partial);
+  async updateMe(dto: UsuarioUpdateMeDto): Promise<UsuarioResponseDto> {
+    const response = await apiClient.put<UsuarioResponseDto>(ENDPOINTS.USER.UPDATE_ME, dto);
     return response.data;
+  },
+
+  /**
+   * Obtiene los datos del perfil del usuario actual (/usuarios/me)
+   */
+  async getProfile(): Promise<UsuarioResponseDto> {
+    const response = await apiClient.get<UsuarioResponseDto>(ENDPOINTS.USER.PROFILE);
+    return response.data;
+  },
+
+  /**
+   * Actualiza datos parciales del perfil del usuario (alias conveniente de updateMe)
+   */
+  async updateProfile(partial: UsuarioUpdateMeDto): Promise<UsuarioResponseDto> {
+    return this.updateMe(partial);
   },
 
   /**

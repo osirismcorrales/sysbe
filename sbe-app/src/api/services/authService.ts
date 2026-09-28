@@ -1,26 +1,18 @@
 import { apiClient, setAuthToken } from "../client";
 import { ENDPOINTS } from "../config";
-import type { User } from "../../data/types";
-
-export interface LoginCredentials {
-  email?: string;
-  dni?: string;
-  password?: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
-}
+import type { User, LoginRequestDto, LoginResponseDto } from "../../data/types";
 
 export const authService = {
   /**
-   * Autenticación con el backend
+   * Autenticación con el backend Spring Boot: POST /api/auth/login
    */
-  async login(credentials: LoginCredentials): Promise<AuthResponse> {
-    const response = await apiClient.post<AuthResponse>(ENDPOINTS.AUTH.LOGIN, credentials);
-    if (response.data.token) {
-      setAuthToken(response.data.token);
+  async login(request: LoginRequestDto): Promise<LoginResponseDto> {
+    const response = await apiClient.post<LoginResponseDto>(ENDPOINTS.AUTH.LOGIN, request);
+    const token =
+      response.data.token || response.data.accessToken || response.data.jwt;
+
+    if (token) {
+      setAuthToken(token);
     }
     return response.data;
   },

@@ -191,11 +191,20 @@ export default function BookScreen({ navigation }: Props) {
 
         {/* Lista de servicios */}
         <View style={styles.serviceList}>
-          {filteredServices.map((service) => (
-            <View key={service.id} style={styles.serviceCard}>
-              <View style={styles.serviceHeader}>
-                <View>
-                  <Text style={styles.serviceName}>{service.name}</Text>
+          {filteredServices.length === 0 ? (
+            <View style={styles.emptyServicesCard}>
+              <Ionicons name="calendar-outline" size={44} color={Colors.textDisabled} />
+              <Text style={styles.emptyServicesTitle}>No hay servicios disponibles</Text>
+              <Text style={styles.emptyServicesSubtitle}>
+                No se encontraron actividades registradas en esta categoría para la fecha seleccionada.
+              </Text>
+            </View>
+          ) : (
+            filteredServices.map((service) => (
+              <View key={service.id} style={styles.serviceCard}>
+                <View style={styles.serviceHeader}>
+                  <View>
+                    <Text style={styles.serviceName}>{service.name}</Text>
                   <View style={styles.serviceMetaRow}>
                     <Ionicons
                       name="people-outline"
@@ -301,8 +310,9 @@ export default function BookScreen({ navigation }: Props) {
                 </View>
               ) : null}
             </View>
-          ))}
-        </View>
+          ))
+        )}
+      </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -542,5 +552,28 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: Colors.textDisabled,
     textAlign: "center",
+  },
+  emptyServicesCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: Spacing["2xl"],
+    paddingHorizontal: Spacing.lg,
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.sm,
+  },
+  emptyServicesTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textPrimary,
+    marginTop: Spacing.xs,
+  },
+  emptyServicesSubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: "center",
+    lineHeight: 18,
   },
 });

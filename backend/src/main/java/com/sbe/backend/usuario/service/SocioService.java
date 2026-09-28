@@ -57,7 +57,7 @@ public class SocioService {
                 .orElseThrow(() -> new NoSuchElementException("No existe un usuario con DNI: " + dni));
 
         // Buscamos la categoría NO_SOCIO usando el método que agregamos en CategoriaRepository
-        Categoria categoriaNoSocio = categoriaRepository.findByTipoSocio("NO_SOCIO")
+        Categoria categoriaNoSocio = categoriaRepository.findByTipoSocioAndVinculoUnse("NO_SOCIO", "SIN_VINCULO_UNSE")
                 .orElseThrow(() -> new IllegalStateException("Categoría base 'NO_SOCIO' no configurada en el sistema."));
 
         usuario.setCategoria(categoriaNoSocio);

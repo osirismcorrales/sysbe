@@ -79,8 +79,10 @@ function buildUrl(path: string): string {
 }
 
 function mergeHeaders(custom?: Record<string, string>): Record<string, string> {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
   return {
     'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...custom,
   };
 }

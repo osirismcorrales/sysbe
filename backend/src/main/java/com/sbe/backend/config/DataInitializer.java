@@ -4,14 +4,19 @@ import com.sbe.backend.instalacion.entity.Instalacion;
 import com.sbe.backend.instalacion.repository.InstalacionRepository;
 import com.sbe.backend.usuario.entity.Categoria;
 import com.sbe.backend.usuario.entity.Rol;
+import com.sbe.backend.usuario.entity.Usuario;
 import com.sbe.backend.usuario.repository.CategoriaRepository;
 import com.sbe.backend.usuario.repository.RolRepository;
+import com.sbe.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Component
 @RequiredArgsConstructor
@@ -20,6 +25,12 @@ public class DataInitializer implements CommandLineRunner {
     private final RolRepository rolRepository;
     private final CategoriaRepository categoriaRepository;
     private final InstalacionRepository instalacionRepository;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
+
+    @Value("${app.admin.password:Admin1234}")
+    private String adminPassword;
+
 
     @Override
     @Transactional
@@ -40,10 +51,13 @@ public class DataInitializer implements CommandLineRunner {
         crearCategoria("NO_SOCIO", "SIN_VINCULO_UNSE", BigDecimal.ZERO,
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
+        crearAdminInicial();
+
+
         // Inicializar instalaciones de prueba
-        crearInstalacion("Cancha de Fútbol 5", "Cancha de césped sintético iluminada", "ACTIVO", new BigDecimal("8000.00"), 60);
-        crearInstalacion("Cancha de Pádel", "Cancha de blindex con iluminación LED", "ACTIVO", new BigDecimal("6000.00"), 90);
-        crearInstalacion("Quincho Principal", "Quincho con asador para eventos", "ACTIVO", new BigDecimal("15000.00"), 240);
+        crearInstalacion("Cancha de Fútbol 5", "Cancha de césped sintético iluminada", "Habilitada", new BigDecimal("8000.00"), 60);
+        crearInstalacion("Cancha de Pádel", "Cancha de blindex con iluminación LED", "Habilitada", new BigDecimal("6000.00"), 90);
+        crearInstalacion("Quincho Principal", "Quincho con asador para eventos", "habilitada", new BigDecimal("15000.00"), 240);
         crearInstalacion("Cancha de Básquet", "En mantenimiento de piso parquet", "MANTENIMIENTO", new BigDecimal("5000.00"), 60);
     }
 
@@ -54,6 +68,32 @@ public class DataInitializer implements CommandLineRunner {
             rol.setDesc(descripcion);
             rolRepository.save(rol);
         }
+    }
+
+    private void crearAdminInicial() {
+        String dni = "11111111";
+        if (usuarioRepository.existsByDni(dni)) {
+            return;   // ya existe: no lo duplica al reiniciar
+        }
+
+        Rol rolAdmin = rolRepository.findByNombreRol("ADMINISTRADOR")
+                .orElseThrow(() -> new IllegalStateException("Falta el rol ADMINISTRADOR"));
+        Categoria categoria = categoriaRepository.findByTipoSocioAndVinculoUnse("NO_SOCIO", "SIN_VINCULO_UNSE")
+                .orElseThrow(() -> new IllegalStateException("Falta la categoría NO_SOCIO"));
+
+        Usuario admin = Usuario.builder()
+                .dni(dni)
+                .nombreCompleto("Administrador del Sistema")
+                .email("admin@sbe.unse.edu.ar")
+                .fechaNacimiento(LocalDateTime.of(1990, 1, 1, 0, 0))
+                .domicilio("UNSE - Santiago del Estero")
+                .passwordHash(passwordEncoder.encode(adminPassword))
+                .estado(Usuario.EstadoUsuario.ACTIVO)
+                .rol(rolAdmin)
+                .categoria(categoria)
+                .build();
+
+        usuarioRepository.save(admin);
     }
 
     private void crearCategoria(String tipoSocio, String vinculoUnse, BigDecimal descuento,

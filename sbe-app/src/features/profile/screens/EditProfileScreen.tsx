@@ -15,8 +15,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
+import { useUpdateMeMutation } from "../../../api/hooks/useUserQuery";
+import { mapUsuarioDtoToUser } from "../../../data/types";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { ProfileStackParamList } from "../../../navigation/ProfileStack";
+import { ActivityIndicator } from "react-native";
 
 type Props = NativeStackScreenProps<ProfileStackParamList, "EditProfile">;
 
@@ -26,11 +29,52 @@ export default function EditProfileScreen({ navigation }: Props) {
   const [email, setEmail] = useState(user.email);
   const [phone, setPhone] = useState(user.phone);
 
+  const { mutate: updateMe, isPending } = useUpdateMeMutation();
+
   const handleSave = () => {
-    updateUser({ name, email, phone });
-    Alert.alert("Datos actualizados", "Tus datos se guardaron correctamente.", [
-      { text: "OK", onPress: () => navigation.goBack() },
-    ]);
+    // Si name tiene nombre y apellido, los separamos para máxima compatibilidad con el DTO
+    const parts = name.trim().split(" ");
+    const nombre = parts[0] || "";
+    const apellido = parts.slice(1).join(" ") || "";
+
+    updateMe(
+      {
+        nombre,
+        apellido,
+        name,
+        email,
+        telefono: phone,
+        phone,
+      },
+      {
+        onSuccess: (updatedDto) => {
+          const mapped = mapUsuarioDtoToUser(updatedDto);
+          updateUser(mapped);
+          Alert.alert("Datos actualizados", "Tus datos se guardaron correctamente en el servidor.", [
+            { text: "OK", onPress: () => navigation.goBack() },
+          ]);
+        },
+        onError: (err: any) => {
+          const errorMsg =
+            err?.message || "No se pudo conectar con el servidor.";
+
+          Alert.alert(
+            "Error al actualizar",
+            `${errorMsg}\n\n¿Deseas guardar los cambios de forma local mientras tanto?`,
+            [
+              { text: "Cancelar", style: "cancel" },
+              {
+                text: "Guardar local",
+                onPress: () => {
+                  updateUser({ name, email, phone });
+                  navigation.goBack();
+                },
+              },
+            ]
+          );
+        },
+      }
+    );
   };
 
   return (
@@ -99,11 +143,16 @@ export default function EditProfileScreen({ navigation }: Props) {
           </View>
 
           <TouchableOpacity
-            style={styles.saveBtn}
+            style={[styles.saveBtn, isPending && { opacity: 0.7 }]}
             onPress={handleSave}
+            disabled={isPending}
             activeOpacity={0.85}
           >
-            <Text style={styles.saveBtnText}>Guardar cambios</Text>
+            {isPending ? (
+              <ActivityIndicator color={Colors.surface} />
+            ) : (
+              <Text style={styles.saveBtnText}>Guardar cambios</Text>
+            )}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>

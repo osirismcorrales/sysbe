@@ -101,7 +101,7 @@ export default function PaymentsScreen() {
             </Text>
           </View>
 
-          {!membership.isPaid && (
+          {!membership.isPaid && membership.monthlyFee > 0 && (
             <TouchableOpacity
               style={styles.payBtn}
               onPress={handlePayMembership}
@@ -121,29 +121,39 @@ export default function PaymentsScreen() {
         {/* Historial */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Historial de pagos</Text>
-          {payments.map((p) => (
-            <View key={p.id} style={styles.paymentCard}>
-              <View style={styles.paymentIconWrap}>
-                <Ionicons
-                  name={CONCEPT_ICON[p.concept] ?? "receipt-outline"}
-                  size={20}
-                  color={Colors.primary}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.paymentDesc}>{p.description}</Text>
-                <Text style={styles.paymentDate}>{p.date}</Text>
-              </View>
-              <View style={styles.paymentRight}>
-                <Text style={styles.paymentAmount}>
-                  ${p.amount.toLocaleString("es-AR")}
-                </Text>
-                <Text style={[styles.paymentStatus, { color: STATUS_COLOR[p.status] ?? Colors.textSecondary }]}>
-                  {p.status === "aprobado" ? "Aprobado" : p.status === "pendiente" ? "Pendiente" : "Rechazado"}
-                </Text>
-              </View>
+          {payments.length === 0 ? (
+            <View style={styles.emptyCard}>
+              <Ionicons name="receipt-outline" size={40} color={Colors.textDisabled} />
+              <Text style={styles.emptyTitle}>Sin pagos registrados</Text>
+              <Text style={styles.emptySubtitle}>
+                Los pagos de tus reservas y cuotas aparecerán reflejados aquí.
+              </Text>
             </View>
-          ))}
+          ) : (
+            payments.map((p) => (
+              <View key={p.id} style={styles.paymentCard}>
+                <View style={styles.paymentIconWrap}>
+                  <Ionicons
+                    name={CONCEPT_ICON[p.concept] ?? "receipt-outline"}
+                    size={20}
+                    color={Colors.primary}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.paymentDesc}>{p.description}</Text>
+                  <Text style={styles.paymentDate}>{p.date}</Text>
+                </View>
+                <View style={styles.paymentRight}>
+                  <Text style={styles.paymentAmount}>
+                    ${p.amount.toLocaleString("es-AR")}
+                  </Text>
+                  <Text style={[styles.paymentStatus, { color: STATUS_COLOR[p.status] ?? Colors.textSecondary }]}>
+                    {p.status === "aprobado" ? "Aprobado" : p.status === "pendiente" ? "Pendiente" : "Rechazado"}
+                  </Text>
+                </View>
+              </View>
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -287,5 +297,27 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.semibold,
     marginTop: 2,
+  },
+  emptyCard: {
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    paddingVertical: Spacing["2xl"],
+    paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    gap: Spacing.xs,
+  },
+  emptyTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textPrimary,
+    marginTop: Spacing.xs,
+  },
+  emptySubtitle: {
+    fontSize: Typography.fontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: "center",
   },
 });
