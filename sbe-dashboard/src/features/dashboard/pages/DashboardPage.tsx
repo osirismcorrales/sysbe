@@ -340,7 +340,11 @@ export function DashboardPage() {
                 <Badge variant="warning" className="text-[10px]">En progreso</Badge>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="font-semibold text-gray-500">Finanzas y Reportes</span>
+                <span className="font-semibold text-gray-700">Gestión de Reportes</span>
+                <Badge variant="success" className="text-[10px]">Conectado</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-semibold text-gray-500">Gestión de Finanzas</span>
                 <Badge variant="warning" className="text-[10px]">En progreso</Badge>
               </div>
               <div className="flex items-center justify-between text-xs">

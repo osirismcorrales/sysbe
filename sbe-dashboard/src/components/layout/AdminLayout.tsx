@@ -27,7 +27,9 @@ export function AdminLayout() {
       case '/servicios':
         return 'Gestión de Instalaciones';
       case '/finanzas':
-        return 'Finanzas y Reportes';
+        return 'Gestión de Finanzas';
+      case '/reportes':
+        return 'Gestión de Reportes';
       case '/encuestas':
         return 'Encuestas de Satisfacción';
       case '/empleados':

@@ -114,7 +114,14 @@ export function UsuariosPage() {
       u.nombreCompleto.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.dni.includes(searchQuery) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRol = rolFilter === 'all' || u.rol?.nombreRol === rolFilter;
+
+    const nombreRolBd = u.rol?.nombreRol?.toUpperCase() || '';
+    const matchesRol =
+      rolFilter === 'all' ||
+      nombreRolBd === rolFilter.toUpperCase() ||
+      (rolFilter === 'USUARIO' && (nombreRolBd === 'SOCIO' || nombreRolBd === 'ROLE_USUARIO'));
+
+
     const isActivo = u.estado?.toUpperCase() === 'ACTIVO';
     const matchesEstado =
       estadoFilter === 'all' ||
@@ -184,7 +191,7 @@ export function UsuariosPage() {
             <option value="all">Todos los roles</option>
             <option value="ADMINISTRADOR">Admin</option>
             <option value="EMPLEADO">Empleado</option>
-            <option value="SOCIO">Socio</option>
+            <option value="USUARIO">Usuario</option>
           </select>
 
           <select

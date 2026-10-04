@@ -54,7 +54,7 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpec
     // Opcional pero muy útil para validar duplicados antes de guardar:
     boolean existsByDni(String dni);
 
-    @Query("SELECT u FROM Usuario u WHERE u.estado = 'ACTIVO' AND u.categoria.tipoSocio <> 'NO_SOCIO'")
+    @Query("SELECT u FROM Usuario u WHERE u.categoria.tipoSocio <> 'NO_SOCIO'")
     List<Usuario> listarSoloSocios();
 
 }

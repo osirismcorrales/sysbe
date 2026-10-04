@@ -95,13 +95,23 @@ public class ReservaServiceImpl implements ReservaService{
         reserva.setEstado(EstadoReserva.RESERVADA);
 
         BigDecimal precioBase = instalacion.getPrecioBase();
-        BigDecimal descuento = usuario.getCategoria().getDescuento();
+        String tipoSocio = usuario.getCategoria().getTipoSocio();
+        BigDecimal porcentaje = usuario.getCategoria().getDescuento();
 
-        BigDecimal montoDescuento = precioBase
-                .multiply(descuento)
-                .divide(BigDecimal.valueOf(100));
+        BigDecimal montoVariacion = precioBase
+                .multiply(porcentaje)
+                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
 
-        BigDecimal montoFinal = precioBase.subtract(montoDescuento);
+        BigDecimal montoFinal;
+
+        if ("NO_SOCIO".equalsIgnoreCase(tipoSocio)) {
+            montoFinal = precioBase.add(montoVariacion);
+        } else if ("SOCIO_INTERNO".equalsIgnoreCase(tipoSocio)) {
+            montoFinal = precioBase.subtract(montoVariacion);
+        } else {
+            montoFinal = precioBase;
+        }
+
         reserva.setMonto(montoFinal);
 
         // Guardar

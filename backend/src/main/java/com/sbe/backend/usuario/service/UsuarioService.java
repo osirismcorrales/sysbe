@@ -37,7 +37,7 @@ public class UsuarioService {
 
     @Transactional(readOnly = true)
     public List<UsuarioResponseDto> listarTodos() {
-        return usuarioRepository.findByEstado(ACTIVO)
+        return usuarioRepository.findAll()
                 .stream()
                 .map(usuarioMapper::toResponseDto)
                 .toList();
