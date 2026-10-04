@@ -12,6 +12,7 @@ import { Shield, Plus, RefreshCw, AlertCircle, Loader2, Search } from 'lucide-re
 
 import { toast } from '../../../components/ui/Toast';
 import { ConfirmDialog } from '../../../components/ui/ConfirmDialog';
+import { Pagination } from '../../../components/ui/Pagination';
 import { UsuarioTable } from '../components/UsuarioTable';
 import {
   UsuarioFormDialog,
@@ -27,6 +28,18 @@ export function UsuariosPage() {
     loading,
     error,
     refresh,
+    page,
+    setPage,
+    size,
+    setSize,
+    totalPages,
+    totalElements,
+    searchQuery,
+    setSearchQuery,
+    rolFilter,
+    setRolFilter,
+    estadoFilter,
+    setEstadoFilter,
     crear,
     actualizar,
     desactivar,
@@ -104,34 +117,7 @@ export function UsuariosPage() {
     }
   };
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [rolFilter, setRolFilter] = useState('all');
-  const [estadoFilter, setEstadoFilter] = useState('all');
-
-  const filteredUsuarios = usuarios.filter((u) => {
-    const matchesSearch =
-      !searchQuery ||
-      u.nombreCompleto.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.dni.includes(searchQuery) ||
-      u.email.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const nombreRolBd = u.rol?.nombreRol?.toUpperCase() || '';
-    const matchesRol =
-      rolFilter === 'all' ||
-      nombreRolBd === rolFilter.toUpperCase() ||
-      (rolFilter === 'USUARIO' && (nombreRolBd === 'SOCIO' || nombreRolBd === 'ROLE_USUARIO'));
-
-
-    const isActivo = u.estado?.toUpperCase() === 'ACTIVO';
-    const matchesEstado =
-      estadoFilter === 'all' ||
-      (estadoFilter === 'ACTIVO' && isActivo) ||
-      (estadoFilter === 'DE_BAJA' && !isActivo);
-
-    return matchesSearch && matchesRol && matchesEstado;
-  });
-
-  if (loading) {
+  if (loading && usuarios.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4 text-gray-400">
         <Loader2 className="h-8 w-8 animate-spin text-brand-red" />
@@ -140,7 +126,7 @@ export function UsuariosPage() {
     );
   }
 
-  if (error) {
+  if (error && usuarios.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4">
         <div className="flex items-center gap-2 text-red-600">
@@ -166,7 +152,7 @@ export function UsuariosPage() {
           </div>
           <h2 className="text-sm font-bold text-slate-900 truncate">Usuarios</h2>
           <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full shrink-0">
-            {filteredUsuarios.length} {filteredUsuarios.length === 1 ? 'usuario' : 'usuarios'}
+            {totalElements} {totalElements === 1 ? 'usuario' : 'usuarios'}
           </span>
         </div>
 
@@ -211,7 +197,7 @@ export function UsuariosPage() {
             className="h-8 w-8 p-0 shrink-0 cursor-pointer"
             title="Actualizar"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
           </Button>
 
           <Button
@@ -230,9 +216,18 @@ export function UsuariosPage() {
       <Card className="shadow-xs overflow-hidden border-gray-200 bg-white">
         <CardContent className="p-0">
           <UsuarioTable
-            usuarios={filteredUsuarios}
+            usuarios={usuarios}
             onToggleStatus={handleToggleStatus}
             onEdit={handleEditClick}
+          />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={size}
+            onPageChange={setPage}
+            onPageSizeChange={setSize}
+            disabled={loading}
           />
         </CardContent>
       </Card>

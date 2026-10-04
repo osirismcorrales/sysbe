@@ -3,7 +3,17 @@
  * Servicio de la feature "usuarios" que usa el apiClient centralizado.
  */
 
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient, type PageResponse, normalizePageResponse } from '../../../lib/apiClient';
+
+export interface GetUsuariosParams {
+  page?: number;
+  size?: number;
+  sort?: string;
+  busqueda?: string;
+  idRol?: number;
+  rol?: string;
+  estado?: string;
+}
 
 // ─── Tipos auxiliares del backend ────────────────────────────────────────────
 
@@ -100,10 +110,30 @@ const RESOURCE = '/usuarios';
 
 // ─── API Methods ─────────────────────────────────────────────────────────────
 
-/** GET /api/usuarios */
-export async function getUsuarios(): Promise<UsuarioResponseDto[]> {
-  const data = await apiClient.get<any[]>(RESOURCE);
-  return (Array.isArray(data) ? data : []).map(normalizeUsuario);
+/** GET /api/usuarios con paginación */
+export async function getUsuariosPaginados(
+  params: GetUsuariosParams = {}
+): Promise<PageResponse<UsuarioResponseDto>> {
+  const query = new URLSearchParams();
+  if (params.page != null) query.set('page', String(params.page));
+  if (params.size != null) query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+  if (params.busqueda) query.set('busqueda', params.busqueda);
+  if (params.idRol != null) query.set('idRol', String(params.idRol));
+  if (params.rol && params.rol !== 'all') query.set('rol', params.rol);
+  if (params.estado && params.estado !== 'all') query.set('estado', params.estado);
+
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  const data = await apiClient.get<any>(`${RESOURCE}${queryString}`);
+  return normalizePageResponse<any, UsuarioResponseDto>(data, normalizeUsuario);
+}
+
+/** GET /api/usuarios (compatibilidad) */
+export async function getUsuarios(
+  params: GetUsuariosParams = {}
+): Promise<UsuarioResponseDto[]> {
+  const res = await getUsuariosPaginados(params);
+  return res.content;
 }
 
 /** GET /api/usuarios/:id */

@@ -9,19 +9,25 @@ export interface ReporteFiltrosRequestDto {
 }
 
 export interface ReservaReporteDto {
-  dni: string;
+  dni?: string;
+  dniUsuario?: string;
   nombreUsuario: string;
-  tipoSocio: string;
-  instalacion: string; 
+  tipoUsuario?: string;
+  tipoSocio?: string;
+  tipoInstalacion?: string;
+  instalacion?: string; 
   servicio?: string;   
   fechaReserva: string;
   estado: string;
 }
 
 export interface SocioActivoReporteDto {
-  dni: string;
-  nombreCompleto: string;
-  tipoSocio: string;
+  dni?: string;
+  dniUsuario?: string;
+  nombreCompleto?: string;
+  nombreUsuario?: string;
+  tipoUsuario?: string;
+  tipoSocio?: string;
   email: string;
   estado: string;
 }

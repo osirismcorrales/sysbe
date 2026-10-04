@@ -8,6 +8,10 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -22,8 +26,9 @@ public class InstalacionController {
 
     // Para administradores: todas (activas, inactivas, en mantenimiento)
     @GetMapping("/todas") // -> GET /api/instalaciones/todas
-    public ResponseEntity<List<InstalacionResponseDto>> getAllInstalaciones() {
-        return ResponseEntity.ok(instalacionService.findAll());
+    public ResponseEntity<Page<InstalacionResponseDto>> getAllInstalaciones(
+            @PageableDefault(size = 8, sort = "id", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(instalacionService.findAll(pageable));
     }
 
     // Para socios/usuarios: solo operativas

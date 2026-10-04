@@ -9,6 +9,7 @@ import { useInstalaciones } from '../hooks/useInstalaciones';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { Plus, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
+import { Pagination } from '../../../components/ui/Pagination';
 
 // Componentes presentacionales
 import {
@@ -53,6 +54,12 @@ export function InstalacionesPage() {
     loading,
     error,
     refresh,
+    page,
+    setPage,
+    size,
+    setSize,
+    totalPages,
+    totalElements,
     crear,
     actualizar,
     cambiarEstado,
@@ -252,7 +259,7 @@ export function InstalacionesPage() {
           <div className="flex items-center gap-2 shrink-0">
             <span className="font-bold text-gray-900 text-sm">Instalaciones</span>
             <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-              {filteredInstalaciones.length} de {instalacionesList.length}
+              {totalElements} {totalElements === 1 ? 'instalación' : 'instalaciones'}
             </span>
           </div>
 
@@ -323,6 +330,22 @@ export function InstalacionesPage() {
             />
           ))}
         </div>
+      )}
+
+      {/* Paginación */}
+      {totalElements > 0 && (
+        <Card className="shadow-xs overflow-hidden border-gray-200 bg-white">
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={size}
+            pageSizeOptions={[4, 8, 12, 24]}
+            onPageChange={setPage}
+            onPageSizeChange={setSize}
+            disabled={loading}
+          />
+        </Card>
       )}
 
       {/* Modal: Crear instalación */}

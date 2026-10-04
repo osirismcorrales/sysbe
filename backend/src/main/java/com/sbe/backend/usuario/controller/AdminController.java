@@ -1,7 +1,6 @@
 package com.sbe.backend.usuario.controller;
 
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
-import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
 import com.sbe.backend.usuario.service.UsuarioService;
 import org.springframework.data.domain.Page;

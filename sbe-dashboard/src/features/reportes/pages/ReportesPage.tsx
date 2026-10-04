@@ -4,6 +4,7 @@ import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { FileText, Printer, Search, RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 import { ReporteTable } from '../components/ReporteTabla';
+import { Pagination } from '../../../components/ui/Pagination';
 
 export function ReportesPage() {
   const {
@@ -15,6 +16,12 @@ export function ReportesPage() {
     instalaciones,
     loading,
     error,
+    page,
+    setPage,
+    size,
+    setSize,
+    totalPages,
+    totalElements,
     fetchReporte,
   } = useReportes();
 
@@ -138,6 +145,11 @@ export function ReportesPage() {
                 <FileText className="h-3.5 w-3.5 text-primary" />
               </div>
               <span className="font-bold text-gray-900 text-sm">Gestión de Reportes</span>
+              {totalElements > 0 && (
+                <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
+                  {totalElements} {totalElements === 1 ? 'registro' : 'registros'}
+                </span>
+              )}
             </div>
 
             <Button
@@ -333,6 +345,17 @@ export function ReportesPage() {
                 tipoReporte={tipoReporte}
                 reservas={reservasReporte}
                 socios={sociosReporte}
+              />
+
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalElements={totalElements}
+                pageSize={size}
+                onPageChange={setPage}
+                onPageSizeChange={setSize}
+                disabled={loading}
+                className="no-print"
               />
             </CardContent>
           </Card>

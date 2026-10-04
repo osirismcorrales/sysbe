@@ -11,6 +11,7 @@ import { Button } from '../../../components/ui/Button';
 import { RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
 
 // Componentes presentacionales
+import { Pagination } from '../../../components/ui/Pagination';
 import { SocioTable } from '../components/SocioTable';
 import { CambiarCategoriaDialog } from '../components/CambiarCategoriaDialog';
 import { GestionarPuntosDialog } from '../components/GestionarPuntosDialog';
@@ -26,6 +27,12 @@ export function SociosPage() {
     loading,
     error,
     refresh,
+    page,
+    setPage,
+    size,
+    setSize,
+    totalPages,
+    totalElements,
     cambiarCategoria,
     darDeBaja,
     agregarPuntos,
@@ -117,7 +124,7 @@ export function SociosPage() {
           <div className="flex items-center gap-2">
             <span className="font-bold text-gray-900 text-sm">Socios</span>
             <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-              {filteredSocios.length} de {socios.length}
+              {totalElements} {totalElements === 1 ? 'socio' : 'socios'}
             </span>
           </div>
 
@@ -180,6 +187,15 @@ export function SociosPage() {
             onEdit={(socio) => setEditingSocio(socio)}
             onDarDeBaja={handleDarDeBajaClick}
             onAjustePuntos={(socio) => setPuntosSocio(socio)}
+          />
+          <Pagination
+            page={page}
+            totalPages={totalPages}
+            totalElements={totalElements}
+            pageSize={size}
+            onPageChange={setPage}
+            onPageSizeChange={setSize}
+            disabled={loading}
           />
         </CardContent>
       </Card>

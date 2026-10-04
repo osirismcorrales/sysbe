@@ -1,12 +1,12 @@
 /**
  * useInstalaciones.ts
- * Hook de la feature de instalaciones.
+ * Hook de la feature de instalaciones con soporte de paginación Pageable.
  * Endpoint: http://localhost:8080/api/instalaciones
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getInstalaciones,
+  getInstalacionesPaginadas,
   createInstalacion,
   updateInstalacion,
   deleteInstalacion,
@@ -21,6 +21,12 @@ export interface UseInstalacionesResult {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  page: number;
+  setPage: (page: number) => void;
+  size: number;
+  setSize: (size: number) => void;
+  totalPages: number;
+  totalElements: number;
   crear: (data: InstalacionRequestDto) => Promise<InstalacionResponseDto>;
   actualizar: (id: number, data: InstalacionRequestDto) => Promise<InstalacionResponseDto>;
   eliminar: (id: number) => Promise<void>;
@@ -34,18 +40,34 @@ export function useInstalaciones(): UseInstalacionesResult {
   const [instalaciones, setInstalaciones] = useState<InstalacionResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(8);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
   const [tick, setTick] = useState(0);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
+
+  const handleSetSize = useCallback((newSize: number) => {
+    setSize(newSize);
+    setPage(0);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    getInstalaciones()
-      .then((data) => {
-        if (!cancelled) setInstalaciones(data);
+    getInstalacionesPaginadas({ page, size, sort: 'id,asc' })
+      .then((pageData) => {
+        if (!cancelled) {
+          setInstalaciones(pageData.content);
+          setTotalPages(pageData.totalPages);
+          setTotalElements(pageData.totalElements);
+        }
       })
       .catch((err: Error) => {
         if (!cancelled) setError(err.message);
@@ -54,25 +76,36 @@ export function useInstalaciones(): UseInstalacionesResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [tick]);
+    return () => {
+      cancelled = true;
+    };
+  }, [page, size, tick]);
 
-  const crear = useCallback(async (data: InstalacionRequestDto) => {
-    const nueva = await createInstalacion(data);
-    setInstalaciones((prev) => [...prev, nueva]);
-    return nueva;
-  }, []);
+  const crear = useCallback(
+    async (data: InstalacionRequestDto) => {
+      const nueva = await createInstalacion(data);
+      refresh();
+      return nueva;
+    },
+    [refresh]
+  );
 
-  const actualizar = useCallback(async (id: number, data: InstalacionRequestDto) => {
-    const updated = await updateInstalacion(id, data);
-    setInstalaciones((prev) => prev.map((i) => (i.id === id ? updated : i)));
-    return updated;
-  }, []);
+  const actualizar = useCallback(
+    async (id: number, data: InstalacionRequestDto) => {
+      const updated = await updateInstalacion(id, data);
+      setInstalaciones((prev) => prev.map((i) => (i.id === id ? updated : i)));
+      return updated;
+    },
+    []
+  );
 
-  const eliminar = useCallback(async (id: number) => {
-    await deleteInstalacion(id);
-    setInstalaciones((prev) => prev.filter((i) => i.id !== id));
-  }, []);
+  const eliminar = useCallback(
+    async (id: number) => {
+      await deleteInstalacion(id);
+      refresh();
+    },
+    [refresh]
+  );
 
   const cambiarEstado = useCallback(
     async (id: number, estado: InstalacionResponseDto['estado']) => {
@@ -89,5 +122,20 @@ export function useInstalaciones(): UseInstalacionesResult {
     [instalaciones, actualizar]
   );
 
-  return { instalaciones, loading, error, refresh, crear, actualizar, eliminar, cambiarEstado };
+  return {
+    instalaciones,
+    loading,
+    error,
+    refresh,
+    page,
+    setPage,
+    size,
+    setSize: handleSetSize,
+    totalPages,
+    totalElements,
+    crear,
+    actualizar,
+    eliminar,
+    cambiarEstado,
+  };
 }

@@ -39,6 +39,14 @@
   --brand-dark-hover: 351 60% 12%; /* #30070b - Dark burgundy hover */
   --brand-red: 351 100% 28%; /* #8F0015 - UNSE Bordo for active states & buttons */
   --brand-yellow: 45 93% 50%; /* #f59e0b - UNSE Gold/Yellow for SBE logo & accents */
+
+  /* Colores UNSE para gráficos */
+  --chart-1: #8F0015;
+  --chart-2: #D97706;
+  --chart-3: #1E3A8A;
+  --chart-4: #059669;
+  --chart-5: #7C3AED;
+  --chart-6: #0284C7;
 }
 
 .dark {
@@ -61,6 +69,14 @@
   --sbe-border: 240 3.7% 15.9%;
   --input: 240 3.7% 15.9%;
   --ring: 351 100% 35%;
+
+  /* Colores UNSE para gráficos en modo oscuro */
+  --chart-1: #b91c1c;
+  --chart-2: #f59e0b;
+  --chart-3: #3b82f6;
+  --chart-4: #10b981;
+  --chart-5: #8b5cf6;
+  --chart-6: #38bdf8;
 }
 
 @theme {

@@ -6,6 +6,8 @@ import com.sbe.backend.instalacion.entity.Instalacion;
 import com.sbe.backend.instalacion.mapper.InstalacionMapper;
 import com.sbe.backend.instalacion.repository.InstalacionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
@@ -17,6 +19,12 @@ public class InstalacionService {
     private final InstalacionRepository instalacionRepository;
     private final InstalacionMapper instalacionMapper;
 
+
+    @Transactional(readOnly = true)
+    public Page<InstalacionResponseDto> findAll(Pageable pageable) {
+        return instalacionRepository.findAll(pageable)
+                .map(instalacionMapper::toResponseDto);
+    }
 
     @Transactional(readOnly = true)
     public List<InstalacionResponseDto> findAll() {

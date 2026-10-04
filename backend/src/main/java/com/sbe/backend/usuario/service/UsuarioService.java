@@ -15,6 +15,8 @@ import com.sbe.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import com.sbe.backend.usuario.specification.UsuarioSpecification;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +25,6 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.DE_BAJA;
-import static com.sbe.backend.usuario.entity.Usuario.EstadoUsuario.ACTIVO;
 
 @Service
 @RequiredArgsConstructor
@@ -172,7 +173,14 @@ public class UsuarioService {
                 .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con id: " + id));
     }
 
+    @Transactional(readOnly = true)
+    public Page<UsuarioResponseDto> listarConFiltros(String busqueda, Long idRol, String rolNombre, Usuario.EstadoUsuario estado, Pageable pageable) {
+        Specification<Usuario> spec = UsuarioSpecification.conFiltros(busqueda, idRol, estado, rolNombre);
+        return usuarioRepository.findAll(spec, pageable).map(usuarioMapper::toResponseDto);
+    }
+
+    @Transactional(readOnly = true)
     public Page<UsuarioResponseDto> listarConFiltros(String busqueda, Long idRol, Usuario.EstadoUsuario estado, Pageable pageable) {
-        return Page.empty(pageable);
+        return listarConFiltros(busqueda, idRol, null, estado, pageable);
     }
 }

@@ -9,7 +9,13 @@
  *  - PUT    /api/reservas/:idReserva/reprogramar → reprogramarReserva
  */
 
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient, type PageResponse, normalizePageResponse } from '../../../lib/apiClient';
+
+export interface GetReservasParams {
+  page?: number;
+  size?: number;
+  sort?: string;
+}
 
 // ─── DTOs del backend ────────────────────────────────────────────────────────
 
@@ -105,11 +111,42 @@ export async function reprogramarReserva(
   return normalizeReserva(data);
 }
 
+/** GET /api/reservas con paginación Spring Data */
+export async function getReservasPaginadas(
+  params: GetReservasParams = {}
+): Promise<PageResponse<ReservaResponseDto>> {
+  const query = new URLSearchParams();
+  if (params.page != null) query.set('page', String(params.page));
+  if (params.size != null) query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  const data = await apiClient.get<any>(`${RESOURCE}${queryString}`);
+  return normalizePageResponse<any, ReservaResponseDto>(data, normalizeReserva);
+}
+
+/** GET /api/reservas (todas) */
+export async function getReservas(
+  params: GetReservasParams = {}
+): Promise<ReservaResponseDto[]> {
+  const res = await getReservasPaginadas(params);
+  return res.content;
+}
+
 /**
- * Obtener todas las reservas del sistema iterando por cada usuario.
- * Nota: Esto es una solución temporal hasta que el backend exponga GET /api/reservas.
+ * Obtener todas las reservas del sistema.
+ * Ahora utiliza el endpoint nativo GET /api/reservas del backend con fallback a usuarios.
  */
-export async function getAllReservas(userIds: number[]): Promise<ReservaResponseDto[]> {
+export async function getAllReservas(userIds: number[] = []): Promise<ReservaResponseDto[]> {
+  try {
+    const res = await getReservasPaginadas({ size: 200, sort: 'fechaReserva,desc' });
+    if (res.content.length > 0 || userIds.length === 0) {
+      return res.content;
+    }
+  } catch (err) {
+    console.warn('Fallback a iteración de usuarios para reservas:', err);
+  }
+
   const results = await Promise.all(
     userIds.map((id) => getReservasUsuario(id).catch(() => [] as ReservaResponseDto[]))
   );

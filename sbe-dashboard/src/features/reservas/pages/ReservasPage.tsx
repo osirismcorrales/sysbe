@@ -14,6 +14,7 @@ import { CalendarDays, Plus, RefreshCw, AlertCircle, Loader2, Search } from 'luc
 // Componentes presentacionales
 import { ReservaTable } from '../components/ReservaTable';
 import { ReservaFormDialog } from '../components/ReservaFormDialog';
+import { Pagination } from '../../../components/ui/Pagination';
 import { toast } from '../../../components/ui/Toast';
 
 // ─── Componente contenedor ──────────────────────────────────────────────────
@@ -28,6 +29,12 @@ export function ReservasPage() {
     loading,
     error,
     refresh,
+    page,
+    setPage,
+    size,
+    setSize,
+    totalPages,
+    totalElements,
     crear,
     cancelar,
     reprogramar,
@@ -109,7 +116,7 @@ export function ReservasPage() {
             </div>
             <span className="font-bold text-gray-900 text-sm">Reservas</span>
             <span className="text-[11px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full whitespace-nowrap">
-              {filteredReservas.length} / {reservas.length}
+              {totalElements} {totalElements === 1 ? 'reserva' : 'reservas'}
             </span>
           </div>
 
@@ -175,13 +182,24 @@ export function ReservasPage() {
               <p className="text-xs font-medium">Cargando reservas…</p>
             </div>
           ) : (
-            <ReservaTable
-              reservas={filteredReservas}
-              usuarioMap={usuarioMap}
-              instalacionMap={instalacionMap}
-              onCancelar={(r) => setCancelTarget(r)}
-              onReprogramar={(r) => setReprogramarReserva(r)}
-            />
+            <>
+              <ReservaTable
+                reservas={filteredReservas}
+                usuarioMap={usuarioMap}
+                instalacionMap={instalacionMap}
+                onCancelar={(r) => setCancelTarget(r)}
+                onReprogramar={(r) => setReprogramarReserva(r)}
+              />
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalElements={totalElements}
+                pageSize={size}
+                onPageChange={setPage}
+                onPageSizeChange={setSize}
+                disabled={loading}
+              />
+            </>
           )}
         </CardContent>
       </Card>

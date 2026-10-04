@@ -1,13 +1,13 @@
 /**
  * useReservas.ts
- * Hook de la feature de reservas.
- * Carga todas las reservas iterando usuarios, junto con las listas de
- * usuarios e instalaciones para resolver nombres en la UI.
+ * Hook de la feature de reservas con soporte de paginación Spring Data Pageable.
+ * Carga reservas directamente mediante GET /api/reservas con paginación,
+ * y mapea usuarios e instalaciones para nombres en la UI.
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-  getAllReservas,
+  getReservasPaginadas,
   crearReserva as apiCrear,
   cancelarReserva as apiCancelar,
   reprogramarReserva as apiReprogramar,
@@ -31,6 +31,12 @@ export interface UseReservasResult {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  page: number;
+  setPage: (page: number) => void;
+  size: number;
+  setSize: (size: number) => void;
+  totalPages: number;
+  totalElements: number;
   crear: (body: ReservaRequestDto) => Promise<ReservaResponseDto>;
   cancelar: (idReserva: number) => Promise<ReservaResponseDto>;
   reprogramar: (idReserva: number, body: ReprogramarReservaRequestDto) => Promise<ReservaResponseDto>;
@@ -42,36 +48,45 @@ export function useReservas(): UseReservasResult {
   const [instalaciones, setInstalaciones] = useState<InstalacionResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
   const [tick, setTick] = useState(0);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
+  const handleSetSize = useCallback((newSize: number) => {
+    setSize(newSize);
+    setPage(0);
+  }, []);
+
+  // Cargar usuarios e instalaciones para relaciones/labels (una sola vez)
+  useEffect(() => {
+    Promise.all([
+      getUsuarios({ size: 100 }).catch(() => [] as UsuarioResponseDto[]),
+      getInstalaciones({ size: 100 }).catch(() => [] as InstalacionResponseDto[]),
+    ]).then(([usuariosData, instalacionesData]) => {
+      setUsuarios(usuariosData);
+      setInstalaciones(instalacionesData);
+    });
+  }, []);
+
+  // Cargar reservas paginadas
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    // Primero cargamos usuarios e instalaciones
-    Promise.all([
-      getUsuarios().catch(() => [] as UsuarioResponseDto[]),
-      getInstalaciones().catch(() => [] as InstalacionResponseDto[]),
-    ])
-      .then(async ([usuariosData, instalacionesData]) => {
-        if (cancelled) return;
-        setUsuarios(usuariosData);
-        setInstalaciones(instalacionesData);
-
-        // Luego iteramos sobre los usuarios para obtener todas las reservas
-        const userIds = usuariosData.map((u) => u.id);
-        const reservasData = await getAllReservas(userIds);
+    getReservasPaginadas({ page, size, sort: 'fechaReserva,desc' })
+      .then((pageData) => {
         if (!cancelled) {
-          // Ordenar por fecha descendente y luego por horario
-          reservasData.sort((a, b) => {
-            const dateCompare = b.fechaReserva.localeCompare(a.fechaReserva);
-            if (dateCompare !== 0) return dateCompare;
-            return a.horarioInicio.localeCompare(b.horarioInicio);
-          });
-          setReservas(reservasData);
+          setReservas(pageData.content);
+          setTotalPages(pageData.totalPages);
+          setTotalElements(pageData.totalElements);
         }
       })
       .catch((err: Error) => {
@@ -81,8 +96,10 @@ export function useReservas(): UseReservasResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [tick]);
+    return () => {
+      cancelled = true;
+    };
+  }, [page, size, tick]);
 
   // Mapas de lookup para resolver IDs → nombres
   const usuarioMap = useMemo(() => {
@@ -97,27 +114,32 @@ export function useReservas(): UseReservasResult {
     return map;
   }, [instalaciones]);
 
-  const crear = useCallback(async (body: ReservaRequestDto) => {
-    const nueva = await apiCrear(body);
-    setReservas((prev) => [nueva, ...prev]);
-    return nueva;
-  }, []);
+  const crear = useCallback(
+    async (body: ReservaRequestDto) => {
+      const nueva = await apiCrear(body);
+      refresh();
+      return nueva;
+    },
+    [refresh]
+  );
 
-  const cancelar = useCallback(async (idReserva: number) => {
-    const updated = await apiCancelar(idReserva);
-    setReservas((prev) =>
-      prev.map((r) => (r.idReserva === idReserva ? updated : r))
-    );
-    return updated;
-  }, []);
+  const cancelar = useCallback(
+    async (idReserva: number) => {
+      const updated = await apiCancelar(idReserva);
+      refresh();
+      return updated;
+    },
+    [refresh]
+  );
 
-  const reprogramar = useCallback(async (idReserva: number, body: ReprogramarReservaRequestDto) => {
-    const updated = await apiReprogramar(idReserva, body);
-    setReservas((prev) =>
-      prev.map((r) => (r.idReserva === idReserva ? updated : r))
-    );
-    return updated;
-  }, []);
+  const reprogramar = useCallback(
+    async (idReserva: number, body: ReprogramarReservaRequestDto) => {
+      const updated = await apiReprogramar(idReserva, body);
+      refresh();
+      return updated;
+    },
+    [refresh]
+  );
 
   return {
     reservas,
@@ -128,6 +150,12 @@ export function useReservas(): UseReservasResult {
     loading,
     error,
     refresh,
+    page,
+    setPage,
+    size,
+    setSize: handleSetSize,
+    totalPages,
+    totalElements,
     crear,
     cancelar,
     reprogramar,

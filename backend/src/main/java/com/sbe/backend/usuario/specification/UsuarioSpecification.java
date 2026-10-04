@@ -13,6 +13,14 @@ public class UsuarioSpecification {
             String busqueda,
             Long idRol,
             Usuario.EstadoUsuario estado) {
+        return conFiltros(busqueda, idRol, estado, null);
+    }
+
+    public static Specification<Usuario> conFiltros(
+            String busqueda,
+            Long idRol,
+            Usuario.EstadoUsuario estado,
+            String rolNombre) {
 
         return (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
@@ -27,6 +35,10 @@ public class UsuarioSpecification {
 
             if (idRol != null) {
                 predicates.add(criteriaBuilder.equal(root.get("rol").get("idRol"), idRol));
+            }
+
+            if (rolNombre != null && !rolNombre.isBlank() && !"all".equalsIgnoreCase(rolNombre)) {
+                predicates.add(criteriaBuilder.equal(criteriaBuilder.upper(root.get("rol").get("nombreRol")), rolNombre.toUpperCase().trim()));
             }
 
             if (estado != null) {

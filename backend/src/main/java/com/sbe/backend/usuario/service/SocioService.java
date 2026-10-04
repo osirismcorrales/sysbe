@@ -9,6 +9,8 @@ import com.sbe.backend.usuario.entity.Usuario.EstadoUsuario;
 import com.sbe.backend.usuario.repository.CategoriaRepository;
 import com.sbe.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -108,6 +110,15 @@ public class SocioService {
                 .orElseThrow(() -> new NoSuchElementException("Socio no encontrado con DNI: " + dni));
 
         return mapToSocioResponse(usuario);
+    }
+
+    /**
+     * Listar todos los socios activos paginados (excluyendo a los NO_SOCIO).
+     */
+    @Transactional(readOnly = true)
+    public Page<SocioResponseDto> listarSociosActivos(Pageable pageable) {
+        return usuarioRepository.listarSoloSocios(pageable)
+                .map(this::mapToSocioResponse);
     }
 
     /**

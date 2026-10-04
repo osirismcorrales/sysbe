@@ -4,13 +4,11 @@ import com.sbe.backend.reporte.dto.ReporteFiltrosRequestDto;
 import com.sbe.backend.reporte.dto.ReservaReporteDto;
 import com.sbe.backend.reporte.dto.SocioActivoReporteDto;
 import com.sbe.backend.reporte.service.ReporteService;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import java.util.List;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api/reportes")
@@ -23,23 +21,26 @@ public class ReporteController {
     }
 
     @PostMapping("/reservas-servicio")
-    public ResponseEntity<List<ReservaReporteDto>> obtenerReporteReservasPorServicio(
-            @RequestBody ReporteFiltrosRequestDto filtros) {
-        List<ReservaReporteDto> reporte = reporteService.obtenerReporteReservasPorServicio(filtros);
+    public ResponseEntity<Page<ReservaReporteDto>> obtenerReporteReservasPorServicio(
+            @RequestBody ReporteFiltrosRequestDto filtros,
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<ReservaReporteDto> reporte = reporteService.obtenerReporteReservasPorServicio(filtros, pageable);
         return ResponseEntity.ok(reporte);
     }
 
     @PostMapping("/reservas-fecha")
-    public ResponseEntity<List<ReservaReporteDto>> obtenerReporteReservasPorFecha(
-            @RequestBody ReporteFiltrosRequestDto filtros) {
-        List<ReservaReporteDto> reporte = reporteService.obtenerReporteReservasPorFecha(filtros);
+    public ResponseEntity<Page<ReservaReporteDto>> obtenerReporteReservasPorFecha(
+            @RequestBody ReporteFiltrosRequestDto filtros,
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<ReservaReporteDto> reporte = reporteService.obtenerReporteReservasPorFecha(filtros, pageable);
         return ResponseEntity.ok(reporte);
     }
 
     @PostMapping("/socios-activos")
-    public ResponseEntity<List<SocioActivoReporteDto>> obtenerReporteSociosActivos(
-            @RequestBody ReporteFiltrosRequestDto filtros) {
-        List<SocioActivoReporteDto> reporte = reporteService.obtenerReporteSociosActivos(filtros);
+    public ResponseEntity<Page<SocioActivoReporteDto>> obtenerReporteSociosActivos(
+            @RequestBody ReporteFiltrosRequestDto filtros,
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<SocioActivoReporteDto> reporte = reporteService.obtenerReporteSociosActivos(filtros, pageable);
         return ResponseEntity.ok(reporte);
     }
 

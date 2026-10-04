@@ -2,6 +2,8 @@ package com.sbe.backend.usuario.repository;
 
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -56,5 +58,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpec
 
     @Query("SELECT u FROM Usuario u WHERE u.categoria.tipoSocio <> 'NO_SOCIO'")
     List<Usuario> listarSoloSocios();
+
+    @Query(value = "SELECT u FROM Usuario u WHERE u.categoria.tipoSocio != 'NO_SOCIO'", countQuery = "SELECT count(u) FROM Usuario u WHERE u.categoria.tipoSocio != 'NO_SOCIO'")
+    Page<Usuario> listarSoloSocios(Pageable pageable);
 
 }

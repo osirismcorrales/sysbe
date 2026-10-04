@@ -10,6 +10,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,6 +24,12 @@ import java.util.List;
 public class ReservaController {
 
     private final ReservaService reservaService;
+
+    @GetMapping
+    public ResponseEntity<Page<ReservaResponseDto>> listarTodas(
+            @PageableDefault(size = 10, sort = "fechaReserva", direction = Sort.Direction.DESC) Pageable pageable) {
+        return ResponseEntity.ok(reservaService.listarTodas(pageable));
+    }
 
     @GetMapping("/usuario/{idUsuario}")
     public ResponseEntity<List<ReservaResponseDto>> obtenerHistorialUsuario(@PathVariable Long idUsuario) {

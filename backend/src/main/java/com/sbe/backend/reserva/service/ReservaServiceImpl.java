@@ -15,6 +15,9 @@ import com.sbe.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -248,5 +251,17 @@ public class ReservaServiceImpl implements ReservaService{
         return reservas.stream()
                 .map(reservaMapper::toHistorialResponseDto)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ReservaResponseDto> listarTodas(Pageable pageable) {
+        return reservaRepository.findAll(pageable).map(reservaMapper::toResponseDto);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ReservaResponseDto> listarTodas() {
+        return reservaRepository.findAll().stream().map(reservaMapper::toResponseDto).toList();
     }
 }

@@ -1,11 +1,11 @@
 /**
  * useSocios.ts
- * Hook de la feature de socios.
+ * Hook de la feature de socios con soporte para paginación Spring Data Pageable.
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getSocios,
+  getSociosPaginados,
   getCategorias,
   asignarCategoria,
   darDeBajaMembresia,
@@ -23,6 +23,12 @@ export interface UseSociosResult {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  page: number;
+  setPage: (page: number) => void;
+  size: number;
+  setSize: (size: number) => void;
+  totalPages: number;
+  totalElements: number;
   cambiarCategoria: (dni: string, categoriaId: number) => Promise<SocioResponseDto>;
   darDeBaja: (dni: string) => Promise<SocioResponseDto>;
   agregarPuntos: (dni: string, puntos: number) => Promise<SocioResponseDto>;
@@ -34,20 +40,41 @@ export function useSocios(): UseSociosResult {
   const [categorias, setCategorias] = useState<CategoriaResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
   const [tick, setTick] = useState(0);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
+  const handleSetSize = useCallback((newSize: number) => {
+    setSize(newSize);
+    setPage(0);
+  }, []);
+
+  // Cargar categorías (solo una vez)
+  useEffect(() => {
+    getCategorias()
+      .then((data) => setCategorias(data))
+      .catch((err) => console.warn('Error cargando categorías:', err));
+  }, []);
+
+  // Cargar socios paginados
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    Promise.all([getSocios(), getCategorias()])
-      .then(([sociosData, categoriasData]) => {
+    getSociosPaginados({ page, size, sort: 'idUsuario,asc' })
+      .then((pageData) => {
         if (!cancelled) {
-          setSocios(sociosData);
-          setCategorias(categoriasData);
+          setSocios(pageData.content);
+          setTotalPages(pageData.totalPages);
+          setTotalElements(pageData.totalElements);
         }
       })
       .catch((err: Error) => {
@@ -57,8 +84,10 @@ export function useSocios(): UseSociosResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [tick]);
+    return () => {
+      cancelled = true;
+    };
+  }, [page, size, tick]);
 
   const cambiarCategoria = useCallback(async (dni: string, categoriaId: number) => {
     const updated = await asignarCategoria(dni, { categoriaId });
@@ -68,10 +97,9 @@ export function useSocios(): UseSociosResult {
 
   const darDeBaja = useCallback(async (dni: string) => {
     const updated = await darDeBajaMembresia(dni);
-    // El socio ahora es NO_SOCIO, puede desaparecer de la lista o actualizarse
-    setSocios((prev) => prev.filter((s) => s.dni !== dni));
+    refresh();
     return updated;
-  }, []);
+  }, [refresh]);
 
   const agregarPuntos = useCallback(async (dni: string, puntos: number) => {
     const updated = await sumarPuntos(dni, { puntos });
@@ -85,5 +113,21 @@ export function useSocios(): UseSociosResult {
     return updated;
   }, []);
 
-  return { socios, categorias, loading, error, refresh, cambiarCategoria, darDeBaja, agregarPuntos, redimirPuntos };
+  return {
+    socios,
+    categorias,
+    loading,
+    error,
+    refresh,
+    page,
+    setPage,
+    size,
+    setSize: handleSetSize,
+    totalPages,
+    totalElements,
+    cambiarCategoria,
+    darDeBaja,
+    agregarPuntos,
+    redimirPuntos,
+  };
 }

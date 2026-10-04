@@ -1,12 +1,12 @@
 /**
  * useUsuarios.ts
- * Hook de la feature de usuarios.
+ * Hook de la feature de usuarios con soporte de paginación Pageable y filtros del servidor.
  * Endpoint: http://localhost:8080/api/usuarios
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  getUsuarios,
+  getUsuariosPaginados,
   createUsuario,
   updateUsuario,
   desactivarUsuario,
@@ -26,6 +26,18 @@ export interface UseUsuariosResult {
   loading: boolean;
   error: string | null;
   refresh: () => void;
+  page: number;
+  setPage: (page: number) => void;
+  size: number;
+  setSize: (size: number) => void;
+  totalPages: number;
+  totalElements: number;
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  rolFilter: string;
+  setRolFilter: (r: string) => void;
+  estadoFilter: string;
+  setEstadoFilter: (e: string) => void;
   crear: (data: UsuarioRequestDto) => Promise<UsuarioResponseDto>;
   actualizar: (id: number, data: UsuarioUpdateDto) => Promise<UsuarioResponseDto>;
   desactivar: (id: number) => Promise<void>;
@@ -36,20 +48,68 @@ export function useUsuarios(): UseUsuariosResult {
   const [categorias, setCategorias] = useState<CategoriaResponseDto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [size, setSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
+
+  // Estados de filtros
+  const [searchQuery, setSearchQueryState] = useState('');
+  const [rolFilter, setRolFilterState] = useState('all');
+  const [estadoFilter, setEstadoFilterState] = useState('all');
+
   const [tick, setTick] = useState(0);
 
   const refresh = useCallback(() => setTick((t) => t + 1), []);
 
+  const setSearchQuery = useCallback((q: string) => {
+    setSearchQueryState(q);
+    setPage(0);
+  }, []);
+
+  const setRolFilter = useCallback((r: string) => {
+    setRolFilterState(r);
+    setPage(0);
+  }, []);
+
+  const setEstadoFilter = useCallback((e: string) => {
+    setEstadoFilterState(e);
+    setPage(0);
+  }, []);
+
+  const handleSetSize = useCallback((newSize: number) => {
+    setSize(newSize);
+    setPage(0);
+  }, []);
+
+  // Cargar categorías (solo una vez o cuando se refresca)
+  useEffect(() => {
+    getCategorias()
+      .then((data) => setCategorias(data))
+      .catch((err) => console.warn('Error cargando categorías:', err));
+  }, []);
+
+  // Cargar usuarios paginados
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    Promise.all([getUsuarios(), getCategorias()])
-      .then(([usuariosData, categoriasData]) => {
+    getUsuariosPaginados({
+      page,
+      size,
+      busqueda: searchQuery.trim() || undefined,
+      rol: rolFilter !== 'all' ? rolFilter : undefined,
+      estado: estadoFilter !== 'all' ? estadoFilter : undefined,
+      sort: 'idUsuario,asc',
+    })
+      .then((pageData) => {
         if (!cancelled) {
-          setUsuarios(usuariosData);
-          setCategorias(categoriasData);
+          setUsuarios(pageData.content);
+          setTotalPages(pageData.totalPages);
+          setTotalElements(pageData.totalElements);
         }
       })
       .catch((err: Error) => {
@@ -59,14 +119,16 @@ export function useUsuarios(): UseUsuariosResult {
         if (!cancelled) setLoading(false);
       });
 
-    return () => { cancelled = true; };
-  }, [tick]);
+    return () => {
+      cancelled = true;
+    };
+  }, [page, size, searchQuery, rolFilter, estadoFilter, tick]);
 
   const crear = useCallback(async (data: UsuarioRequestDto) => {
     const nuevo = await createUsuario(data);
-    setUsuarios((prev) => [...prev, nuevo]);
+    refresh();
     return nuevo;
-  }, []);
+  }, [refresh]);
 
   const actualizar = useCallback(async (id: number, data: UsuarioUpdateDto) => {
     const updated = await updateUsuario(id, data);
@@ -76,9 +138,29 @@ export function useUsuarios(): UseUsuariosResult {
 
   const desactivar = useCallback(async (id: number) => {
     await desactivarUsuario(id);
-    // Actualizamos el estado local (baja lógica)
-    setUsuarios((prev) => prev.map((u) => (u.id === id ? { ...u, estado: 'DE_BAJA' } : u)));
-  }, []);
+    refresh();
+  }, [refresh]);
 
-  return { usuarios, categorias, loading, error, refresh, crear, actualizar, desactivar };
+  return {
+    usuarios,
+    categorias,
+    loading,
+    error,
+    refresh,
+    page,
+    setPage,
+    size,
+    setSize: handleSetSize,
+    totalPages,
+    totalElements,
+    searchQuery,
+    setSearchQuery,
+    rolFilter,
+    setRolFilter,
+    estadoFilter,
+    setEstadoFilter,
+    crear,
+    actualizar,
+    desactivar,
+  };
 }

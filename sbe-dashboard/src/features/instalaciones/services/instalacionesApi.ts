@@ -3,7 +3,13 @@
  * Servicio de la feature "instalaciones" que usa el apiClient centralizado.
  */
 
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient, type PageResponse, normalizePageResponse } from '../../../lib/apiClient';
+
+export interface GetInstalacionesParams {
+  page?: number;
+  size?: number;
+  sort?: string;
+}
 
 // ─── DTOs del backend ────────────────────────────────────────────────────────
 
@@ -55,15 +61,31 @@ const RESOURCE = '/instalaciones';
 
 // ─── API Methods ─────────────────────────────────────────────────────────────
 
-/** GET /api/instalaciones (intenta /todas para ver todos los estados en el panel) */
-export async function getInstalaciones(): Promise<InstalacionResponseDto[]> {
+/** GET /api/instalaciones con paginación */
+export async function getInstalacionesPaginadas(
+  params: GetInstalacionesParams = {}
+): Promise<PageResponse<InstalacionResponseDto>> {
+  const query = new URLSearchParams();
+  if (params.page != null) query.set('page', String(params.page));
+  if (params.size != null) query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+
+  const queryString = query.toString() ? `?${query.toString()}` : '';
   try {
-    const data = await apiClient.get<any[]>('/instalaciones/todas');
-    return (Array.isArray(data) ? data : []).map(normalizeInstalacion);
+    const data = await apiClient.get<any>(`/instalaciones/todas${queryString}`);
+    return normalizePageResponse<any, InstalacionResponseDto>(data, normalizeInstalacion);
   } catch {
-    const data = await apiClient.get<any[]>(RESOURCE);
-    return (Array.isArray(data) ? data : []).map(normalizeInstalacion);
+    const data = await apiClient.get<any>(`${RESOURCE}${queryString}`);
+    return normalizePageResponse<any, InstalacionResponseDto>(data, normalizeInstalacion);
   }
+}
+
+/** GET /api/instalaciones (compatibilidad) */
+export async function getInstalaciones(
+  params: GetInstalacionesParams = {}
+): Promise<InstalacionResponseDto[]> {
+  const res = await getInstalacionesPaginadas(params);
+  return res.content;
 }
 
 /** GET /api/instalaciones/:id */

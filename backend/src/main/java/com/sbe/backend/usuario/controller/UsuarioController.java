@@ -11,9 +11,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import com.sbe.backend.usuario.entity.Usuario;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/usuarios")
@@ -25,8 +28,13 @@ public class UsuarioController {
 
     // GET http://localhost:8080/api/usuarios
     @GetMapping
-    public ResponseEntity<List<UsuarioResponseDto>> listarTodos() {
-        return ResponseEntity.ok(usuarioService.listarTodos());
+    public ResponseEntity<Page<UsuarioResponseDto>> listar(
+            @RequestParam(required = false) String busqueda,
+            @RequestParam(required = false) Long idRol,
+            @RequestParam(required = false) String rol,
+            @RequestParam(required = false) Usuario.EstadoUsuario estado,
+            @PageableDefault(size = 10, sort = "idUsuario", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(usuarioService.listarConFiltros(busqueda, idRol, rol, estado, pageable));
     }
 
     // GET http://localhost:8080/api/usuarios/{id}

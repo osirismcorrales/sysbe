@@ -14,6 +14,64 @@ const API_BASE_URL = 'http://localhost:8080/api';
 
 // ─── Tipos ──────────────────────────────────────────────────────────────────
 
+export interface PageResponse<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  size: number;
+  number: number; // Índice de página basado en 0 (Spring Boot)
+  first: boolean;
+  last: boolean;
+  empty: boolean;
+  numberOfElements?: number;
+}
+
+export function normalizePageResponse<T, R = T>(
+  raw: any,
+  itemNormalizer: (item: any) => R = (item) => item as unknown as R
+): PageResponse<R> {
+  if (!raw) {
+    return {
+      content: [],
+      totalElements: 0,
+      totalPages: 0,
+      size: 10,
+      number: 0,
+      first: true,
+      last: true,
+      empty: true,
+    };
+  }
+
+  // Compatibilidad: si el backend devuelve un arreglo plano
+  if (Array.isArray(raw)) {
+    const items = raw.map(itemNormalizer);
+    return {
+      content: items,
+      totalElements: items.length,
+      totalPages: 1,
+      size: items.length,
+      number: 0,
+      first: true,
+      last: true,
+      empty: items.length === 0,
+    };
+  }
+
+  const contentArray = Array.isArray(raw.content) ? raw.content : [];
+  return {
+    content: contentArray.map(itemNormalizer),
+    totalElements: typeof raw.totalElements === 'number' ? raw.totalElements : contentArray.length,
+    totalPages: typeof raw.totalPages === 'number' ? raw.totalPages : 1,
+    size: typeof raw.size === 'number' ? raw.size : 10,
+    number: typeof raw.number === 'number' ? raw.number : 0,
+    first: Boolean(raw.first ?? (raw.number === 0)),
+    last: Boolean(raw.last ?? (raw.number >= (raw.totalPages ?? 1) - 1)),
+    empty: Boolean(raw.empty ?? (contentArray.length === 0)),
+    numberOfElements: raw.numberOfElements ?? contentArray.length,
+  };
+}
+
 export interface BackendErrorResponse {
   timestamp?: string;
   status: number;

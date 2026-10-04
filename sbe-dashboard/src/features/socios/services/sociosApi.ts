@@ -12,7 +12,13 @@
  *  - GET    /api/categorias          → listarTodas (categorías)
  */
 
-import { apiClient } from '../../../lib/apiClient';
+import { apiClient, type PageResponse, normalizePageResponse } from '../../../lib/apiClient';
+
+export interface GetSociosParams {
+  page?: number;
+  size?: number;
+  sort?: string;
+}
 
 // ─── DTOs del backend ────────────────────────────────────────────────────────
 
@@ -85,10 +91,26 @@ const RESOURCE = '/socios';
 
 // ─── API Methods ─────────────────────────────────────────────────────────────
 
-/** GET /api/socios — Listar socios activos (excluyendo NO_SOCIO) */
-export async function getSocios(): Promise<SocioResponseDto[]> {
-  const data = await apiClient.get<any[]>(RESOURCE);
-  return (Array.isArray(data) ? data : []).map(normalizeSocio);
+/** GET /api/socios con paginación */
+export async function getSociosPaginados(
+  params: GetSociosParams = {}
+): Promise<PageResponse<SocioResponseDto>> {
+  const query = new URLSearchParams();
+  if (params.page != null) query.set('page', String(params.page));
+  if (params.size != null) query.set('size', String(params.size));
+  if (params.sort) query.set('sort', params.sort);
+
+  const queryString = query.toString() ? `?${query.toString()}` : '';
+  const data = await apiClient.get<any>(`${RESOURCE}${queryString}`);
+  return normalizePageResponse<any, SocioResponseDto>(data, normalizeSocio);
+}
+
+/** GET /api/socios — Listar socios activos (compatibilidad) */
+export async function getSocios(
+  params: GetSociosParams = {}
+): Promise<SocioResponseDto[]> {
+  const res = await getSociosPaginados(params);
+  return res.content;
 }
 
 /** GET /api/socios/:dni — Buscar socio por DNI */

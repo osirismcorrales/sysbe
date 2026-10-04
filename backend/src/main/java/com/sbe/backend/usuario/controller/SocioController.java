@@ -7,9 +7,11 @@ import com.sbe.backend.usuario.service.SocioService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/socios")
@@ -19,11 +21,12 @@ public class SocioController {
     private final SocioService socioService;
 
     /**
-     * Listar todos los socios activos del polideportivo.
+     * Listar todos los socios activos del polideportivo paginados.
      */
     @GetMapping
-    public ResponseEntity<List<SocioResponseDto>> listarSociosActivos() {
-        return ResponseEntity.ok(socioService.listarSociosActivos());
+    public ResponseEntity<Page<SocioResponseDto>> listarSociosActivos(
+            @PageableDefault(size = 10, sort = "idUsuario", direction = Sort.Direction.ASC) Pageable pageable) {
+        return ResponseEntity.ok(socioService.listarSociosActivos(pageable));
     }
 
     /**

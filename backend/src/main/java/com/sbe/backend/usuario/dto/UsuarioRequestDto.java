@@ -1,7 +1,5 @@
 package com.sbe.backend.usuario.dto;
 
-import com.sbe.backend.usuario.entity.Categoria;
-import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario.EstadoUsuario;
 import jakarta.validation.constraints.*;
 
