@@ -44,7 +44,7 @@ export default function AppTabs() {
         tabBarIcon: ({ focused, color }) => {
           let iconName: keyof typeof Ionicons.glyphMap = "home";
           if (route.name === "Inicio") iconName = focused ? "home" : "home-outline";
-          else if (route.name === "Reservas") iconName = focused ? "calendar" : "calendar-outline";
+          else if (route.name === "Reservas") iconName = focused ? "ticket" : "ticket-outline";
           else if (route.name === "Pagos") iconName = focused ? "card" : "card-outline";
           else if (route.name === "Perfil") iconName = focused ? "person" : "person-outline";
           return <Ionicons name={iconName} size={22} color={color} />;

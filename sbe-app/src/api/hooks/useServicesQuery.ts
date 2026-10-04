@@ -3,37 +3,24 @@ import { queryKeys } from "../queryKeys";
 import { servicesService } from "../services/servicesService";
 
 /**
- * Hook para obtener la lista de servicios / instalaciones disponibles
+ * Hook para obtener la lista de instalaciones disponibles
+ * GET /api/instalaciones
  */
-export function useServices(category?: string) {
+export function useServices() {
   return useQuery({
-    queryKey: queryKeys.services.list(category),
+    queryKey: queryKeys.services.list(),
     queryFn: () => servicesService.getAll(),
-    select: (data) => {
-      if (!category) return data;
-      return data.filter((s) => s.category === category);
-    },
   });
 }
 
 /**
- * Hook para obtener el detalle de un servicio individual
+ * Hook para obtener el detalle de una instalación individual
+ * GET /api/instalaciones/{id}
  */
-export function useServiceDetail(id: string) {
+export function useServiceDetail(id: string | number) {
   return useQuery({
     queryKey: queryKeys.services.detail(id),
     queryFn: () => servicesService.getById(id),
     enabled: Boolean(id),
-  });
-}
-
-/**
- * Hook para consultar los turnos disponibles para un servicio y fecha
- */
-export function useServiceSlots(id: string, date: string) {
-  return useQuery({
-    queryKey: queryKeys.services.slots(id, date),
-    queryFn: () => servicesService.getSlots(id, date),
-    enabled: Boolean(id && date),
   });
 }

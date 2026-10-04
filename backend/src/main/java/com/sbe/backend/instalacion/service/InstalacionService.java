@@ -56,7 +56,7 @@ public class InstalacionService {
     @Transactional(readOnly = true)
     public List<InstalacionResponseDto> listarDisponibles() {
         // Buscamos las instalaciones en estado operativo/activo
-        return instalacionRepository.findByEstadoIgnoreCase("ACTIVO")
+        return instalacionRepository.findByEstadoIgnoreCase("Habilitada")
                 .stream()
                 .map(instalacionMapper::toResponseDto)
                 .toList();

@@ -6,6 +6,7 @@ import { Button } from '../../../components/ui/Button';
 import { FieldError } from '../../../components/ui/FieldError';
 import { toast } from '../../../components/ui/Toast';
 import { login } from '../services/authApi';
+import { ApiError } from '../../../lib/apiClient';
 import { getUserRole } from '../utils/authUtils';
 import {
   loginSchema,
@@ -58,10 +59,32 @@ export function LoginPage() {
         navigate('/');
 
     } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'No se pudo iniciar sesión.';
+      let message: string;
+
+      if (err instanceof ApiError) {
+        // Map HTTP status to user-friendly login messages
+        switch (err.status) {
+          case 401:
+            message = 'DNI o contraseña incorrectos. Verifique sus datos e intente nuevamente.';
+            break;
+          case 403:
+            message = 'Su cuenta no tiene permisos para acceder al sistema.';
+            break;
+          case 404:
+            message = 'El servicio de autenticación no está disponible.';
+            break;
+          default:
+            if (err.status >= 500) {
+              message = 'Error interno del servidor. Intente nuevamente en unos minutos.';
+            } else {
+              message = err.mensaje || 'No se pudo iniciar sesión.';
+            }
+        }
+      } else if (err instanceof TypeError && (err.message === 'Failed to fetch' || err.message.includes('NetworkError'))) {
+        message = 'No se pudo conectar con el servidor. Verifique su conexión a internet.';
+      } else {
+        message = 'Ocurrió un error inesperado. Intente nuevamente.';
+      }
 
       setError('root', {
         message,

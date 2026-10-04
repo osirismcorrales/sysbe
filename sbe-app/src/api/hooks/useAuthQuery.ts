@@ -22,15 +22,8 @@ export function useLoginMutation() {
 
   return useMutation({
     mutationFn: (request: LoginRequestDto) => authService.login(request),
-    onSuccess: (data: LoginResponseDto) => {
-      const user = data.usuario || data.user;
-      if (user) {
-        queryClient.setQueryData(queryKeys.auth.me(), user);
-        queryClient.setQueryData(queryKeys.user.profile(), user);
-        if (user.id) {
-          queryClient.setQueryData(queryKeys.user.detail(user.id), user);
-        }
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.user.all });
     },
   });
@@ -43,7 +36,9 @@ export function useLogoutMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: () => authService.logout(),
+    mutationFn: async () => {
+      authService.logout();
+    },
     onSuccess: () => {
       queryClient.clear();
     },

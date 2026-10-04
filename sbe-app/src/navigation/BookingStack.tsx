@@ -11,6 +11,8 @@ export type BookingStackParamList = {
     serviceName: string;
     date: string;
     time: string;
+    horaInicio?: string;
+    horaFin?: string;
     price: number;
   };
   MyReservations: undefined;

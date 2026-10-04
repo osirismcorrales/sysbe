@@ -3,6 +3,7 @@ package com.sbe.backend.reserva.service;
 import com.sbe.backend.instalacion.entity.Instalacion;
 import com.sbe.backend.instalacion.repository.InstalacionRepository;
 import com.sbe.backend.reserva.dto.ReprogramarReservaRequestDto;
+import com.sbe.backend.reserva.dto.ReservaHistorialResponseDto;
 import com.sbe.backend.reserva.dto.ReservaRequestDto;
 import com.sbe.backend.reserva.dto.ReservaResponseDto;
 import com.sbe.backend.reserva.entity.EstadoReserva;
@@ -13,6 +14,7 @@ import com.sbe.backend.usuario.entity.Usuario;
 import com.sbe.backend.usuario.repository.UsuarioRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -209,6 +211,32 @@ public class ReservaServiceImpl implements ReservaService{
 
         return reservas.stream()
                 .map(reservaMapper::toResponseDto)
+                .toList();
+    }
+
+    @Override
+    public List<ReservaHistorialResponseDto> obtenerMisReservas(Authentication authentication) {
+
+        String dni = authentication.getName();
+
+        Usuario usuario = usuarioRepository.findByDni(dni)
+                .orElseThrow(() ->
+                        new ResponseStatusException(
+                                HttpStatus.NOT_FOUND,
+                                "Usuario no encontrado"
+                        )
+                );
+
+        LocalDate fechaDesde = LocalDate.now().minusYears(2);
+
+        List<Reserva> reservas = reservaRepository
+                .findByUsuarioIdUsuarioAndFechaReservaGreaterThanEqual(
+                        usuario.getIdUsuario(),
+                        fechaDesde
+                );
+
+        return reservas.stream()
+                .map(reservaMapper::toHistorialResponseDto)
                 .toList();
     }
 }

@@ -1,29 +1,24 @@
 import { apiClient } from "../client";
 import { ENDPOINTS } from "../config";
-import type { Service, TimeSlot } from "../../data/types";
+import type { InstalacionResponseDto, Service } from "../../data/types";
+import { mapInstalacionToService } from "../../data/types";
 
 export const servicesService = {
   /**
-   * Obtiene la lista completa de servicios / instalaciones disponibles
+   * Obtiene la lista de instalaciones disponibles (operativas)
+   * GET /api/instalaciones
    */
   async getAll(): Promise<Service[]> {
-    const response = await apiClient.get<Service[]>(ENDPOINTS.SERVICES.LIST);
-    return response.data;
+    const response = await apiClient.get<InstalacionResponseDto[]>(ENDPOINTS.INSTALACIONES.LIST);
+    return response.data.map(mapInstalacionToService);
   },
 
   /**
-   * Obtiene el detalle de un servicio por su ID
+   * Obtiene el detalle de una instalación por su ID
+   * GET /api/instalaciones/{id}
    */
-  async getById(id: string): Promise<Service> {
-    const response = await apiClient.get<Service>(ENDPOINTS.SERVICES.DETAIL(id));
-    return response.data;
-  },
-
-  /**
-   * Obtiene los horarios/turnos disponibles de un servicio para una fecha dada
-   */
-  async getSlots(id: string, date: string): Promise<TimeSlot[]> {
-    const response = await apiClient.get<TimeSlot[]>(ENDPOINTS.SERVICES.SLOTS(id, date));
-    return response.data;
+  async getById(id: string | number): Promise<Service> {
+    const response = await apiClient.get<InstalacionResponseDto>(ENDPOINTS.INSTALACIONES.DETAIL(id));
+    return mapInstalacionToService(response.data);
   },
 };

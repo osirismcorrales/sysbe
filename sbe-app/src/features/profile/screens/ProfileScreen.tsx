@@ -13,7 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
-import { useUserById } from "../../../api/hooks/useUserQuery";
+import { useUserProfile } from "../../../api/hooks/useUserQuery";
 import { mapUsuarioDtoToUser } from "../../../data/types";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { ProfileStackParamList } from "../../../navigation/ProfileStack";
@@ -29,8 +29,8 @@ type Props = CompositeScreenProps<
 export default function ProfileScreen({ navigation }: Props) {
   const { user, totalPoints, points, promotions, redeemPromotion, logout } = useApp();
 
-  // Consulta al backend Spring Boot: GET /api/usuarios/{id}
-  const { data: userDto, isFetching, refetch } = useUserById(user.id);
+  // Consulta al backend Spring Boot: GET /api/usuarios/me
+  const { data: userDto, isFetching, refetch } = useUserProfile();
   const displayUser = userDto ? mapUsuarioDtoToUser(userDto) : user;
 
   const handleLogout = () => {
@@ -97,11 +97,41 @@ export default function ProfileScreen({ navigation }: Props) {
             {displayUser.dni ? `DNI: ${displayUser.dni}` : "Sin DNI registrado"}
           </Text>
           <View style={styles.profileBadgesRow}>
-            <View style={[styles.profileBadge, { backgroundColor: Colors.primaryLight }]}>
-              <Text style={styles.profileBadgeText}>Socio {displayUser.category || "General"}</Text>
+            {/* Categoría */}
+            <View style={[styles.profileBadge, { backgroundColor: Colors.primary }]}>
+              <Ionicons name="ribbon-outline" size={13} color={Colors.textOnPrimary} style={{ marginRight: 4 }} />
+              <Text style={styles.profileBadgeText}>{displayUser.category || "No Socio"}</Text>
             </View>
-            <View style={[styles.profileBadge, { backgroundColor: displayUser.status === "Activo" ? Colors.successLight : Colors.errorLight }]}>
-              <Text style={[styles.profileBadgeTextDark, { color: displayUser.status === "Activo" ? Colors.success : Colors.error }]}>
+
+            {/* Puntos acumulados */}
+            <View style={[styles.profileBadge, { backgroundColor: Colors.accent }]}>
+              <Ionicons name="star" size={13} color={Colors.textOnAccent} style={{ marginRight: 4 }} />
+              <Text style={styles.profileBadgeTextDark}>{totalPoints} pts</Text>
+            </View>
+
+            {/* Estado */}
+            <View
+              style={[
+                styles.profileBadge,
+                {
+                  backgroundColor:
+                    displayUser.status === "Activo"
+                      ? Colors.successLight
+                      : Colors.errorLight,
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.profileBadgeTextDark,
+                  {
+                    color:
+                      displayUser.status === "Activo"
+                        ? Colors.success
+                        : Colors.error,
+                  },
+                ]}
+              >
                 {displayUser.status || "Activo"}
               </Text>
             </View>
@@ -114,6 +144,45 @@ export default function ProfileScreen({ navigation }: Props) {
             <Ionicons name="create-outline" size={16} color={Colors.primary} />
             <Text style={styles.editBtnText}>Editar datos</Text>
           </TouchableOpacity>
+        </View>
+
+        {/* Categoría y Beneficios */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Categoría y Membresía</Text>
+          <View style={styles.categoryCard}>
+            <View style={styles.categoryCardHeader}>
+              <View style={styles.categoryIconWrap}>
+                <Ionicons name="ribbon" size={24} color={Colors.primary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.categoryTitle}>{displayUser.category || "No Socio"}</Text>
+                <Text style={styles.categorySubtitle}>
+                  {displayUser.classification ? `Vínculo: ${displayUser.classification}` : "Comunidad UNSE"}
+                </Text>
+              </View>
+            </View>
+
+            {displayUser.categoriaObj && (
+              <View style={styles.categoryBenefitsRow}>
+                {displayUser.categoriaObj.descuento !== undefined && (
+                  <View style={styles.categoryBenefitItem}>
+                    <Text style={styles.benefitValue}>
+                      {displayUser.categoriaObj.descuento}%
+                    </Text>
+                    <Text style={styles.benefitLabel}>Descuento en reservas</Text>
+                  </View>
+                )}
+                {displayUser.categoriaObj.cuotaMensual !== undefined && (
+                  <View style={styles.categoryBenefitItem}>
+                    <Text style={styles.benefitValue}>
+                      ${Number(displayUser.categoriaObj.cuotaMensual).toLocaleString("es-AR")}
+                    </Text>
+                    <Text style={styles.benefitLabel}>Cuota mensual</Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
         </View>
 
         {/* Puntos */}
@@ -187,18 +256,8 @@ export default function ProfileScreen({ navigation }: Props) {
           )}
         </View>
 
-        {/* QR y Logout */}
+        {/* Logout */}
         <View style={styles.section}>
-          <TouchableOpacity
-            style={styles.menuItem}
-            onPress={() => navigation.navigate("CarnetQR")}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="qr-code-outline" size={20} color={Colors.primary} />
-            <Text style={styles.menuItemText}>Mi Carnet QR</Text>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textSecondary} />
-          </TouchableOpacity>
-
           <TouchableOpacity
             style={styles.logoutBtn}
             onPress={handleLogout}
@@ -258,12 +317,16 @@ const styles = StyleSheet.create({
   },
   profileBadgesRow: {
     flexDirection: "row",
-    gap: Spacing.sm,
+    flexWrap: "wrap",
+    justifyContent: "center",
+    gap: Spacing.xs,
     marginTop: Spacing.md,
   },
   profileBadge: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
     borderRadius: Radius.full,
   },
   profileBadgeText: {
@@ -274,6 +337,7 @@ const styles = StyleSheet.create({
   profileBadgeTextDark: {
     fontSize: Typography.fontSize.xs,
     fontWeight: Typography.fontWeight.bold,
+    color: Colors.textOnAccent,
   },
   editBtn: {
     flexDirection: "row",
@@ -301,6 +365,65 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textPrimary,
     marginBottom: Spacing.md,
+  },
+
+  // Categoría Card
+  categoryCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    ...Shadow.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  categoryCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.md,
+  },
+  categoryIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.primaryTransparent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryTitle: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textPrimary,
+  },
+  categorySubtitle: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  categoryBenefitsRow: {
+    flexDirection: "row",
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingTop: Spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  categoryBenefitItem: {
+    flex: 1,
+    backgroundColor: Colors.background,
+    padding: Spacing.sm,
+    borderRadius: Radius.md,
+    alignItems: "center",
+  },
+  benefitValue: {
+    fontSize: Typography.fontSize.base,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.primary,
+  },
+  benefitLabel: {
+    fontSize: 10,
+    color: Colors.textSecondary,
+    marginTop: 2,
+    textAlign: "center",
   },
 
   pointsCard: {

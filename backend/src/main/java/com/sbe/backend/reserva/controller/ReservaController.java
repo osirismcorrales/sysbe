@@ -1,6 +1,7 @@
 package com.sbe.backend.reserva.controller;
 
 import com.sbe.backend.reserva.dto.ReprogramarReservaRequestDto;
+import com.sbe.backend.reserva.dto.ReservaHistorialResponseDto;
 import com.sbe.backend.reserva.dto.ReservaRequestDto;
 import com.sbe.backend.reserva.dto.ReservaResponseDto;
 import com.sbe.backend.reserva.service.ReservaService;
@@ -8,6 +9,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -23,6 +25,15 @@ public class ReservaController {
     public ResponseEntity<List<ReservaResponseDto>> obtenerHistorialUsuario(@PathVariable Long idUsuario) {
         List<ReservaResponseDto> historial = reservaService.obtenerHistorialUsuario(idUsuario);
         return ResponseEntity.ok(historial);
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<List<ReservaHistorialResponseDto>> obtenerMisReservas(
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                reservaService.obtenerMisReservas(authentication)
+        );
     }
 
     @PostMapping

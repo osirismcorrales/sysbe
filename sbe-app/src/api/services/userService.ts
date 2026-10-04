@@ -15,6 +15,9 @@ export const userService = {
    * GET http://localhost:8080/api/usuarios/{id}
    */
   async getById(id: string | number): Promise<UsuarioResponseDto> {
+    if (!id && id !== 0) {
+      throw new Error("Se requiere un ID de usuario válido");
+    }
     const response = await apiClient.get<UsuarioResponseDto>(ENDPOINTS.USER.BY_ID(id));
     return response.data;
   },

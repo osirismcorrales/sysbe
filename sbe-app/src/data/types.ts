@@ -1,5 +1,3 @@
-// ── Tipos globales del sistema SBE UNSE ──────────────────────────────────────
-
 export type UserCategory = "Interno" | "Externo" | "No Socio";
 export type UserClassification = "Alumno" | "Docente" | "No Docente" | "Externo";
 export type UserStatus = "Activo" | "De baja";
@@ -10,42 +8,67 @@ export type User = {
   dni: string;
   email: string;
   phone: string;
-  category: UserCategory;
-  classification: UserClassification;
+  category: string;
+  categoriaObj?: CategoriaResponseDto;
+  classification: string;
   status: UserStatus;
   memberSince: string; // ISO date
+  domicilio: string;
+  rol: string;
+  puntosAcumulados: number;
+  fechaNacimiento: string;
 };
 
 // ── DTOs del Backend (Spring Boot /api/usuarios) ─────────────────────────────
 
+/**
+ * Espejo exacto del record CategoriaResponseDto de Spring Boot.
+ * public record CategoriaResponseDto(
+ *         Integer idCategoria,
+ *         String tipoSocio,
+ *         String vinculoUnse,      // puede ser null
+ *         String etiqueta,         // texto listo para mostrar en el selector
+ *         BigDecimal descuento,
+ *         BigDecimal cuotaMensual,
+ *         BigDecimal cuotaTrimestral,
+ *         BigDecimal cuotaAnual
+ * ) {}
+ */
+export interface CategoriaResponseDto {
+  idCategoria?: number;
+  tipoSocio?: string;
+  vinculoUnse?: string | null;
+  etiqueta?: string;
+  descuento?: number;
+  cuotaMensual?: number;
+  cuotaTrimestral?: number;
+  cuotaAnual?: number;
+}
+
+/**
+ * Espejo exacto del record UsuarioResponseDto de Spring Boot.
+ * Campos: id, dni, nombreCompleto, email, fechaNacimiento, puntosAc,
+ *         estado, domicilio, rol, categoria
+ */
 export interface UsuarioResponseDto {
-  id: number | string;
-  nombre?: string;
-  apellido?: string;
-  name?: string;
+  id: number;
   dni: string;
+  nombreCompleto: string;
   email: string;
-  telefono?: string;
-  phone?: string;
-  categoria?: UserCategory | string;
-  category?: UserCategory;
-  clasificacion?: UserClassification | string;
-  classification?: UserClassification;
-  estado?: UserStatus | string;
-  status?: UserStatus;
-  fechaAlta?: string;
-  memberSince?: string;
-  [key: string]: any;
+  fechaNacimiento?: string;
+  puntosAc?: number;
+  estado?: string;
+  domicilio?: string;
+  rol?: any;
+  categoria?: CategoriaResponseDto | string | null;
 }
 
 export interface UsuarioUpdateMeDto {
-  nombre?: string;
-  apellido?: string;
-  name?: string;
-  email?: string;
-  telefono?: string;
-  phone?: string;
-  [key: string]: any;
+  nombreCompleto: string;
+  email: string;
+  fechaNacimiento: string; // ISO date string (LocalDateTime en backend)
+  domicilio: string;
+  password?: string; // Opcional: solo si el usuario desea cambiar su clave
 }
 
 // ── DTOs de Autenticación (Spring Boot /api/auth) ───────────────────────────
@@ -56,55 +79,95 @@ export interface LoginRequestDto {
 }
 
 export interface LoginResponseDto {
-  token?: string;
-  accessToken?: string;
-  jwt?: string;
-  usuario?: UsuarioResponseDto;
-  user?: UsuarioResponseDto;
-  id?: number | string;
-  dni?: string;
-  [key: string]: any;
+  token: string;
+}
+
+/**
+ * Formatea la categoría del usuario para mostrarla de manera amigable y clara.
+ * Evita redundancias como "Socio No Socio".
+ */
+export function formatCategoriaLabel(
+  categoria?: CategoriaResponseDto | string | null
+): string {
+  if (!categoria) return "No Socio";
+
+  // Si vino directamente como string
+  if (typeof categoria === "string") {
+    const raw = categoria.trim().toUpperCase();
+    if (raw === "NO_SOCIO" || raw === "NO SOCIO" || raw === "") return "No Socio";
+    if (raw === "SOCIO_INTERNO" || raw === "INTERNO") return "Socio Interno";
+    if (raw === "SOCIO_EXTERNO" || raw === "EXTERNO") return "Socio Externo";
+    return categoria;
+  }
+
+  // Si viene como objeto CategoriaResponseDto con 'etiqueta' provista por el backend
+  if (categoria.etiqueta && categoria.etiqueta.trim().length > 0) {
+    return categoria.etiqueta;
+  }
+
+  const tipo = (categoria.tipoSocio || "").toUpperCase();
+  const vinculo = (categoria.vinculoUnse || "").trim();
+
+  if (tipo.includes("NO_SOCIO") || tipo === "NO SOCIO") {
+    return "No Socio";
+  }
+
+  let label = "Socio";
+  if (tipo.includes("INTERNO")) {
+    label = "Socio Interno";
+  } else if (tipo.includes("EXTERNO")) {
+    label = "Socio Externo";
+  }
+
+  if (vinculo) {
+    const formattedVinculo =
+      vinculo.charAt(0).toUpperCase() + vinculo.slice(1).toLowerCase();
+    label += ` · ${formattedVinculo}`;
+  }
+
+  return label;
 }
 
 /**
  * Normaliza un UsuarioResponseDto proveniente de Spring Boot al modelo User de la app
  */
 export function mapUsuarioDtoToUser(dto: UsuarioResponseDto): User {
-  const resolvedName =
-    dto.name ||
-    dto.nombreCompleto ||
-    [dto.nombre, dto.apellido].filter(Boolean).join(" ") ||
-    "Usuario SBE";
+  const estadoMap: Record<string, UserStatus> = {
+    ACTIVO: "Activo",
+    Activo: "Activo",
+    DE_BAJA: "De baja",
+    "De baja": "De baja",
+  };
 
-  const resolvedCategory: UserCategory =
-    (dto.category as UserCategory) ||
-    (dto.categoria as UserCategory) ||
-    (dto.tipoUsuario as UserCategory) ||
-    "Interno";
+  const categoriaObj =
+    typeof dto.categoria === "object" && dto.categoria !== null
+      ? (dto.categoria as CategoriaResponseDto)
+      : undefined;
 
-  const resolvedClassification: UserClassification =
-    (dto.classification as UserClassification) ||
-    (dto.clasificacion as UserClassification) ||
-    (dto.claustro as UserClassification) ||
-    "Alumno";
+  const categoryLabel = formatCategoriaLabel(dto.categoria);
 
-  const resolvedStatus: UserStatus =
-    (dto.status as UserStatus) ||
-    (dto.estado as UserStatus) ||
-    "Activo";
-
-  const resolvedId = dto.id ?? dto.usuarioId ?? dto.idUsuario ?? "";
+  let rolNombre = "";
+  if (typeof dto.rol === "object" && dto.rol !== null) {
+    rolNombre = dto.rol.nombreRol || dto.rol.nombre || "";
+  } else if (dto.rol) {
+    rolNombre = String(dto.rol);
+  }
 
   return {
-    id: String(resolvedId),
-    name: resolvedName,
-    dni: String(dto.dni || dto.documento || dto.numeroDocumento || ""),
-    email: dto.email || dto.correo || dto.mail || "",
-    phone: dto.telefono || dto.phone || dto.celular || "",
-    category: resolvedCategory,
-    classification: resolvedClassification,
-    status: resolvedStatus,
-    memberSince: dto.fechaAlta || dto.memberSince || dto.createdAt || "",
+    id: String(dto.id),
+    name: dto.nombreCompleto || "Usuario SBE",
+    dni: dto.dni || "",
+    email: dto.email || "",
+    phone: "",
+    category: categoryLabel,
+    categoriaObj,
+    classification: categoriaObj?.vinculoUnse || "Comunidad UNSE",
+    status: estadoMap[dto.estado || ""] || "Activo",
+    memberSince: "",
+    domicilio: dto.domicilio || "",
+    rol: rolNombre,
+    puntosAcumulados: dto.puntosAc ?? 0,
+    fechaNacimiento: dto.fechaNacimiento || "",
   };
 }
 
@@ -130,6 +193,10 @@ export const EMPTY_USER: User = {
   classification: "Alumno",
   status: "Activo",
   memberSince: "",
+  domicilio: "",
+  rol: "",
+  puntosAcumulados: 0,
+  fechaNacimiento: "",
 };
 
 export const EMPTY_MEMBERSHIP: Membership = {
@@ -152,6 +219,92 @@ export type PointMovement = {
 // ── Reservas ──
 
 export type ReservationStatus = "reservado" | "completado" | "cancelado" | "pendiente";
+
+export type EstadoReserva =
+  | "RESERVADA"
+  | "CANCELADA"
+  | "REPROGRAMADA"
+  | "FINALIZADA"
+  | "BLOQUEADA";
+
+export interface ReservaRequestDto {
+  fechaReserva: string;  // "YYYY-MM-DD"
+  horarioInicio: string; // "HH:mm:ss" o "HH:mm"
+  horarioFin: string;    // "HH:mm:ss" o "HH:mm"
+  idUsuario: number;
+  idInstalacion: number;
+}
+
+export interface ReprogramarReservaRequestDto {
+  fechaReserva: string;  // "YYYY-MM-DD"
+  horarioInicio: string; // "HH:mm:ss" o "HH:mm"
+  horarioFin: string;    // "HH:mm:ss" o "HH:mm"
+}
+
+export interface ReservaResponseDto {
+  idReserva: number;
+  fechaReserva: string;
+  horarioInicio: string;
+  horarioFin: string;
+  estadoReserva: EstadoReserva;
+  montoReserva?: number;
+  idUsuario?: number;
+  idInstalacion: number;
+  nombreInstalacion?: string;
+}
+
+/**
+ * Espejo exacto del record ReservaHistorialResponseDto de Spring Boot.
+ * public record ReservaHistorialResponseDto(
+ *         Long idReserva,
+ *         LocalDate fechaReserva,
+ *         LocalTime horarioInicio,
+ *         LocalTime horarioFin,
+ *         EstadoReserva estadoReserva,
+ *         BigDecimal montoReserva,
+ *         Long idInstalacion,
+ *         String nombreInstalacion
+ * ) {}
+ */
+export interface ReservaHistorialResponseDto {
+  idReserva: number;
+  fechaReserva: string;
+  horarioInicio: string;
+  horarioFin: string;
+  estadoReserva: EstadoReserva;
+  montoReserva: number;
+  idInstalacion: number;
+  nombreInstalacion: string;
+}
+
+export function mapReservaHistorialToReservation(
+  dto: ReservaHistorialResponseDto
+): Reservation {
+  const hIni = dto.horarioInicio ? dto.horarioInicio.slice(0, 5) : "";
+  const hFin = dto.horarioFin ? dto.horarioFin.slice(0, 5) : "";
+  const timeFormatted = hIni && hFin ? `${hIni} - ${hFin}` : hIni || "";
+
+  let status: ReservationStatus = "reservado";
+  if (dto.estadoReserva === "CANCELADA") {
+    status = "cancelado";
+  } else if (dto.estadoReserva === "FINALIZADA") {
+    status = "completado";
+  }
+
+  return {
+    id: String(dto.idReserva),
+    serviceId: String(dto.idInstalacion),
+    serviceName: dto.nombreInstalacion || "Instalación SBE",
+    date: dto.fechaReserva,
+    time: timeFormatted,
+    price: dto.montoReserva ?? 0,
+    discount: 0,
+    pointsUsed: 0,
+    pointsEarned: Math.round((dto.montoReserva ?? 0) / 50) * 10,
+    status,
+    createdAt: dto.fechaReserva,
+  };
+}
 
 export type Reservation = {
   id: string;
@@ -182,24 +335,88 @@ export type Payment = {
   reservationId?: string; // si está asociado a una reserva
 };
 
-// ── Servicios ──
+// ── Instalaciones / Servicios (Spring Boot: /api/instalaciones) ──
 
-export type ServiceCategory = "deportes" | "pileta" | "asadores";
+/**
+ * Espejo exacto del record InstalacionResponseDto de Spring Boot.
+ */
+export interface InstalacionResponseDto {
+  id: number;
+  nombre: string;
+  descripcion: string;
+  estado: string;
+  precio_base: number;
+  duracion_minutos: number;
+}
 
-export type TimeSlot = {
-  time: string;       // "HH:mm"
-  available: boolean;
-};
-
+/**
+ * Modelo interno de la app para una instalación/servicio.
+ */
 export type Service = {
   id: string;
   name: string;
-  category: ServiceCategory;
-  maxPeople: number;
+  description: string;
+  status: string;
   price: number;
-  available: boolean;
-  slots: TimeSlot[];
+  durationMinutes: number;
 };
+
+/**
+ * Convierte un InstalacionResponseDto del backend al modelo Service de la app.
+ */
+export function mapInstalacionToService(dto: InstalacionResponseDto): Service {
+  return {
+    id: String(dto.id),
+    name: dto.nombre || "",
+    description: dto.descripcion || "",
+    status: dto.estado || "",
+    price: dto.precio_base ?? 0,
+    durationMinutes: dto.duracion_minutos ?? 0,
+  };
+}
+
+// ── Disponibilidad y Plantillas Horarias (Spring Boot: /api/plantillas-horario) ──
+
+export type DiaSemana =
+  | "LUNES"
+  | "MARTES"
+  | "MIERCOLES"
+  | "JUEVES"
+  | "VIERNES"
+  | "SABADO"
+  | "DOMINGO";
+
+/**
+ * Espejo exacto de BloqueDto de Spring Boot.
+ * public record BloqueDto(LocalTime horaInicio, LocalTime horaFin, boolean disponible) {}
+ */
+export interface BloqueDto {
+  horaInicio: string; // "HH:mm" o "HH:mm:ss"
+  horaFin: string;    // "HH:mm" o "HH:mm:ss"
+  disponible: boolean;
+}
+
+/**
+ * Espejo de PlantillaHorarioResponseDto de Spring Boot.
+ */
+export interface PlantillaHorarioResponseDto {
+  id: number;
+  idInstalacion: number;
+  nombreInstalacion?: string;
+  diaSemana: DiaSemana;
+  horaInicio: string;
+  horaFin: string;
+}
+
+/**
+ * Espejo de PlantillaHorarioRequestDto de Spring Boot.
+ */
+export interface PlantillaHorarioRequestDto {
+  idInstalacion: number;
+  diaSemana: DiaSemana;
+  horaInicio: string;
+  horaFin: string;
+}
 
 // ── Promociones ──
 

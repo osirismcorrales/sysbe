@@ -3,15 +3,25 @@ import { queryKeys } from "../queryKeys";
 import { reservationsService, CreateReservationDTO } from "../services/reservationsService";
 
 /**
+ * Hook para obtener las reservas del usuario autenticado (GET /api/reservas/me)
+ */
+export function useMisReservas() {
+  return useQuery({
+    queryKey: queryKeys.reservations.list("me"),
+    queryFn: () => reservationsService.obtenerMisReservas(),
+  });
+}
+
+/**
  * Hook para obtener las reservas del usuario
  */
 export function useReservations(status?: string) {
   return useQuery({
     queryKey: queryKeys.reservations.list(status),
-    queryFn: () => reservationsService.getAll(),
+    queryFn: () => reservationsService.obtenerMisReservas(),
     select: (data) => {
       if (!status) return data;
-      return data.filter((r) => r.status === status);
+      return data.filter((r) => r.estadoReserva === status);
     },
   });
 }

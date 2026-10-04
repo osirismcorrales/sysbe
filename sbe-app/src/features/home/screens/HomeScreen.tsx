@@ -55,14 +55,14 @@ export default function HomeScreen({ navigation }: Props) {
     {
       id: "reserva",
       label: "Nueva reserva",
-      icon: "calendar-outline" as keyof typeof Ionicons.glyphMap,
+      icon: "ticket-outline" as keyof typeof Ionicons.glyphMap,
       onPress: () => navigation.navigate("Reservas"),
     },
     {
-      id: "carnet",
-      label: "Mi carnet",
-      icon: "id-card-outline" as keyof typeof Ionicons.glyphMap,
-      onPress: () => navigation.navigate("Perfil", { screen: "CarnetQR" } as any),
+      id: "mis-reservas",
+      label: "Mis reservas",
+      icon: "calendar-number-outline" as keyof typeof Ionicons.glyphMap,
+      onPress: () => navigation.navigate("Reservas", { screen: "MyReservations" } as any),
     },
     {
       id: "puntos",
@@ -104,8 +104,8 @@ export default function HomeScreen({ navigation }: Props) {
           {/* Badges Centrados */}
           <View style={styles.badgesRowCentered}>
             <View style={[styles.badge, { backgroundColor: Colors.primaryLight }]}>
-              <Ionicons name="checkmark-circle" size={14} color={Colors.textOnPrimary} />
-              <Text style={styles.badgeTextWhite}> Socio {user.category || "General"}</Text>
+              <Ionicons name="ribbon-outline" size={14} color={Colors.textOnPrimary} />
+              <Text style={styles.badgeTextWhite}> {user.category || "No Socio"}</Text>
             </View>
             <View style={[styles.badge, { backgroundColor: Colors.accent }]}>
               <Ionicons name="star" size={14} color={Colors.textOnAccent} />
@@ -160,7 +160,7 @@ export default function HomeScreen({ navigation }: Props) {
                               ? "alert-circle-outline"
                               : item.status === "completado"
                               ? "checkmark-circle-outline"
-                              : "calendar-outline"
+                              : "ticket"
                           }
                           size={20}
                           color={

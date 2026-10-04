@@ -3,3 +3,4 @@ export * from "./useServicesQuery";
 export * from "./useReservationsQuery";
 export * from "./usePaymentsQuery";
 export * from "./useUserQuery";
+export * from "./useDisponibilidadQuery";

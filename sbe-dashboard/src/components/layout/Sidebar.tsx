@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { getUserInfo } from '../../features/auth/utils/authUtils';
 
 interface SidebarProps {
   className?: string;
@@ -23,6 +24,8 @@ interface SidebarProps {
 export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
   
   const navigate = useNavigate();
+
+  const userInfo = useMemo(() => getUserInfo(), []);
 
   const handleLogout = () => {
     const confirmed = window.confirm(
@@ -69,6 +72,13 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
     }
   ];
 
+  // Role label for display
+  const displayRole = userInfo?.role === 'ADMINISTRADOR'
+    ? 'Administrador'
+    : userInfo?.role === 'EMPLEADO'
+      ? 'Empleado'
+      : userInfo?.role ?? 'Usuario';
+
   return (
     <>
       {/* Backdrop for mobile */}
@@ -81,11 +91,12 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          "bg-brand-dark text-white flex flex-col h-screen overflow-y-auto border-r border-red-950/40 select-none transition-all duration-300 z-50",
-          // Desktop positioning
-          "lg:w-64 lg:static lg:translate-x-0 lg:flex",
-          // Mobile/tablet positioning (drawer)
-          "fixed top-0 bottom-0 left-0 w-64 md:w-72 flex",
+          "bg-brand-dark text-white flex flex-col h-screen overflow-y-auto border-r border-red-950/40 select-none transition-all duration-300",
+          // Fixed positioning on all screen sizes
+          "fixed top-0 bottom-0 left-0 z-50",
+          // Width
+          "w-64 md:w-72 lg:w-64",
+          // Mobile/tablet: drawer slide in/out; Desktop: always visible
           isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0",
           className
         )}
@@ -151,21 +162,30 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
           ))}
         </nav>
 
-        {/* User Profile */}
+        {/* User Profile — shows actual logged-in user */}
         <div className="p-4 border-t border-red-950/30 bg-red-950/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-brand-yellow text-brand-dark font-bold text-sm flex items-center justify-center border border-yellow-400/30 shadow-sm">
-              MA
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 rounded-full bg-brand-yellow text-brand-dark font-bold text-sm flex items-center justify-center border border-yellow-400/30 shadow-sm shrink-0">
+              {userInfo?.initials ?? 'U'}
             </div>
-            <div className="flex flex-col">
-              <span className="text-xs font-semibold text-red-50">M. Álvarez</span>
-              <span className="text-[10px] text-red-300/60 font-medium">Administrador</span>
+            <div className="flex flex-col min-w-0">
+              <span className="text-xs font-semibold text-red-50 truncate">
+                {userInfo?.nombre ?? 'Usuario'}
+              </span>
+              {userInfo?.username && (
+                <span className="text-[10px] text-red-300/80 font-medium truncate">
+                  @{userInfo.username}
+                </span>
+              )}
+              <span className="text-[10px] text-red-300/60 font-medium truncate">
+                {displayRole}
+              </span>
             </div>
           </div>
           <button 
             title="Cerrar sesión"
             onClick={handleLogout}
-            className="text-red-300/40 hover:text-red-100 p-1.5 rounded-lg transition-colors cursor-pointer"
+            className="text-red-300/40 hover:text-red-100 p-1.5 rounded-lg transition-colors cursor-pointer shrink-0"
           >
             <LogOut className="h-4 w-4" />
           </button>
@@ -175,3 +195,4 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
   );
 }
 export default Sidebar;
+

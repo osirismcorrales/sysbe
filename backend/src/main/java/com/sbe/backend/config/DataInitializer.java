@@ -57,7 +57,7 @@ public class DataInitializer implements CommandLineRunner {
         // Inicializar instalaciones de prueba
         crearInstalacion("Cancha de Fútbol 5", "Cancha de césped sintético iluminada", "Habilitada", new BigDecimal("8000.00"), 60);
         crearInstalacion("Cancha de Pádel", "Cancha de blindex con iluminación LED", "Habilitada", new BigDecimal("6000.00"), 90);
-        crearInstalacion("Quincho Principal", "Quincho con asador para eventos", "habilitada", new BigDecimal("15000.00"), 240);
+        crearInstalacion("Quincho Principal", "Quincho con asador para eventos", "Habilitada", new BigDecimal("15000.00"), 240);
         crearInstalacion("Cancha de Básquet", "En mantenimiento de piso parquet", "MANTENIMIENTO", new BigDecimal("5000.00"), 60);
     }
 

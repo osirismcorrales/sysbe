@@ -1,5 +1,5 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "axios";
-import { API_BASE_URL } from "./config";
+import { API_BASE_URL, setApiBaseUrl } from "./config";
 
 /**
  * Token en memoria para adjuntar en requests autenticadas.
@@ -27,6 +27,15 @@ export const apiClient: AxiosInstance = axios.create({
   },
 });
 
+/**
+ * Actualiza la URL base del API en tiempo de ejecución.
+ * Cambia tanto la variable de config como la baseURL del axios instance.
+ */
+export function updateApiBaseUrl(newUrl: string): void {
+  setApiBaseUrl(newUrl);
+  apiClient.defaults.baseURL = newUrl;
+}
+
 // Interceptor para agregar headers (ej: Token de autenticación)
 apiClient.interceptors.request.use(
   (config: InternalAxiosRequestConfig) => {
@@ -43,11 +52,11 @@ apiClient.interceptors.request.use(
 // Interceptor para respuestas y manejo centralizado de errores
 apiClient.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<{ message?: string }>) => {
+  (error: AxiosError<{ message?: string; mensaje?: string }>) => {
     // Aquí se pueden capturar códigos de error como 401 (No autorizado) o errores de red
     const status = error.response?.status;
     const errorMessage =
-      error.response?.data?.message || error.message || "Error de red inesperado";
+      error.response?.data?.mensaje || error.response?.data?.message || error.message || "Error de red inesperado";
 
     // Solo registrar warning en desarrollo si no es un 401/403 esperado
     if (__DEV__ && status !== 401 && status !== 403) {

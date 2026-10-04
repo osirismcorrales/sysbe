@@ -8,11 +8,9 @@ export const authService = {
    */
   async login(request: LoginRequestDto): Promise<LoginResponseDto> {
     const response = await apiClient.post<LoginResponseDto>(ENDPOINTS.AUTH.LOGIN, request);
-    const token =
-      response.data.token || response.data.accessToken || response.data.jwt;
 
-    if (token) {
-      setAuthToken(token);
+    if (response.data.token) {
+      setAuthToken(response.data.token);
     }
     return response.data;
   },
@@ -26,15 +24,10 @@ export const authService = {
   },
 
   /**
-   * Cierre de sesión y limpieza de credenciales
+   * Cierre de sesión y limpieza local del token JWT (stateless).
+   * No requiere llamada HTTP al backend.
    */
-  async logout(): Promise<void> {
-    try {
-      await apiClient.post(ENDPOINTS.AUTH.LOGOUT);
-    } catch {
-      // Ignorar si el endpoint de logout falla en servidor
-    } finally {
-      setAuthToken(null);
-    }
+  logout(): void {
+    setAuthToken(null);
   },
 };

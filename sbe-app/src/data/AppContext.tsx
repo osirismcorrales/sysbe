@@ -7,11 +7,10 @@ import type {
   Payment,
   Service,
   Promotion,
-  ReservationStatus,
-  UsuarioResponseDto,
   LoginRequestDto,
+  ReservationStatus,
 } from "./types";
-import { mapUsuarioDtoToUser, EMPTY_USER, EMPTY_MEMBERSHIP } from "./types";
+import { mapUsuarioDtoToUser, mapReservaHistorialToReservation, EMPTY_USER, EMPTY_MEMBERSHIP } from "./types";
 import {
   authService,
   userService,
@@ -37,10 +36,16 @@ type AppContextType = {
 
   // Acciones
   updateUser: (partial: Partial<User>) => Promise<void>;
-  refreshUser: (id?: string | number) => Promise<void>;
+  refreshUser: () => Promise<void>;
   refreshAll: () => Promise<void>;
   addReservation: (reservation: Reservation) => Promise<void>;
   cancelReservation: (id: string) => Promise<void>;
+  reprogramReservation: (
+    id: string,
+    fechaReserva: string,
+    horarioInicio: string,
+    horarioFin: string
+  ) => Promise<any>;
   addPayment: (payment: Payment) => Promise<void>;
   payMembership: () => void;
   addPoints: (movement: PointMovement) => void;
@@ -66,46 +71,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
 
-  // Calcular puntos totales
-  const totalPoints = points.reduce((sum, p) => sum + p.amount, 0);
+  // Calcular puntos totales a partir de los puntos acumulados del backend (puntosAc) + movimientos locales
+  const totalPoints = (user.puntosAcumulados || 0) + points.reduce((sum, p) => sum + p.amount, 0);
 
-  // Cargar usuario real desde Spring Boot
-  const refreshUser = useCallback(async (id?: string | number) => {
+  // Cargar usuario real desde Spring Boot: GET /api/usuarios/me
+  const refreshUser = useCallback(async () => {
     // Si no hay token ni sesión activa, no realizar llamadas protegidas que resulten en 403
     if (!getAuthToken() && !isLoggedIn) {
       return;
     }
 
-    const targetId = id ?? currentUserId;
-    if (!targetId) {
-      try {
-        setIsLoadingUser(true);
-        const dto = await userService.getProfile();
-        const mapped = mapUsuarioDtoToUser(dto);
-        setUser(mapped);
-        if (dto.id) setCurrentUserId(dto.id);
-      } catch {
-        // No hay sesión activa en backend
-      } finally {
-        setIsLoadingUser(false);
-      }
-      return;
-    }
-
     setIsLoadingUser(true);
     try {
-      const dto = await userService.getById(targetId);
+      const dto = await userService.getProfile();
       const mapped = mapUsuarioDtoToUser(dto);
       setUser(mapped);
-      if (id) setCurrentUserId(id);
+      if (dto.id) setCurrentUserId(dto.id);
     } catch (err) {
       if (__DEV__) {
-        console.warn(`[AppContext] No se pudo cargar usuario ${targetId} del backend:`, err);
+        console.warn("[AppContext] No se pudo cargar perfil del usuario:", err);
       }
     } finally {
       setIsLoadingUser(false);
     }
-  }, [currentUserId, isLoggedIn]);
+  }, [isLoggedIn]);
 
   // Cargar servicios, reservas y pagos reales
   const refreshAll = useCallback(async () => {
@@ -113,7 +102,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    await refreshUser(currentUserId);
+    await refreshUser();
     try {
       const backendServices = await servicesService.getAll();
       if (Array.isArray(backendServices) && backendServices.length > 0) {
@@ -121,20 +110,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {}
 
+    // Cargar historial de reservas reales del backend: GET /api/reservas/me
     try {
-      const backendReservations = await reservationsService.getAll();
-      if (Array.isArray(backendReservations)) {
-        setReservations(backendReservations);
+      const backendReservas = await reservationsService.obtenerMisReservas();
+      if (Array.isArray(backendReservas)) {
+        const mapped: Reservation[] = backendReservas.map(mapReservaHistorialToReservation);
+        setReservations(mapped);
       }
     } catch {}
-
-    try {
-      const backendPayments = await paymentsService.getAll();
-      if (Array.isArray(backendPayments)) {
-        setPayments(backendPayments);
-      }
-    } catch {}
-  }, [currentUserId, isLoggedIn, refreshUser]);
+  }, [isLoggedIn, refreshUser]);
 
   // Cargar información real únicamente cuando el usuario esté autenticado
   useEffect(() => {
@@ -145,33 +129,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   // Actualizar usuario en backend: PUT /api/usuarios/me
   const updateUser = useCallback(async (partial: Partial<User>) => {
-    // Actualización optimista local
     setUser((prev) => ({ ...prev, ...partial }));
-
-    try {
-      const parts = (partial.name || "").trim().split(" ");
-      const dto = await userService.updateMe({
-        nombre: parts[0] || undefined,
-        apellido: parts.slice(1).join(" ") || undefined,
-        name: partial.name,
-        email: partial.email,
-        telefono: partial.phone,
-        phone: partial.phone,
-      });
-      setUser(mapUsuarioDtoToUser(dto));
-    } catch (err) {
-      if (__DEV__) {
-        console.warn("[AppContext] Error al guardar en backend PUT /usuarios/me:", err);
-      }
-      throw err;
-    }
   }, []);
 
   const addReservation = useCallback(async (reservation: Reservation) => {
-    // Actualización local
     setReservations((prev) => [reservation, ...prev]);
 
-    // Sumar puntos ganados
     if (reservation.pointsEarned > 0) {
       const pointMovement: PointMovement = {
         id: `pt-${Date.now()}`,
@@ -181,50 +144,59 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       };
       setPoints((prev) => [pointMovement, ...prev]);
     }
-
-    try {
-      await reservationsService.create(reservation);
-    } catch (err) {
-      if (__DEV__) {
-        console.warn("[AppContext] Error al crear reserva en backend:", err);
-      }
-    }
   }, []);
 
   const cancelReservation = useCallback(async (id: string) => {
     setReservations((prev) =>
       prev.map((r) => {
         if (r.id !== id) return r;
-        if (r.pointsUsed > 0) {
-          const refundMovement: PointMovement = {
-            id: `pt-${Date.now()}`,
-            date: new Date().toISOString().split("T")[0],
-            description: `Devolución: ${r.serviceName}`,
-            amount: r.pointsUsed,
-          };
-          setPoints((pp) => [refundMovement, ...pp]);
-        }
-        if (r.pointsEarned > 0) {
-          const deductMovement: PointMovement = {
-            id: `pt-${Date.now() + 1}`,
-            date: new Date().toISOString().split("T")[0],
-            description: `Cancelación: ${r.serviceName}`,
-            amount: -r.pointsEarned,
-          };
-          setPoints((pp) => [deductMovement, ...pp]);
-        }
         return { ...r, status: "cancelado" as ReservationStatus };
       })
     );
 
     try {
-      await reservationsService.cancel(id);
+      await reservationsService.cancelarReserva(id);
     } catch (err) {
       if (__DEV__) {
         console.warn("[AppContext] Error al cancelar reserva en backend:", err);
       }
     }
   }, []);
+
+  const reprogramReservation = useCallback(
+    async (
+      id: string,
+      fechaReserva: string,
+      horarioInicio: string,
+      horarioFin: string
+    ) => {
+      let finalHoraInicio = horarioInicio;
+      let finalHoraFin = horarioFin;
+      if (finalHoraInicio.length === 5) finalHoraInicio = `${finalHoraInicio}:00`;
+      if (finalHoraFin.length === 5) finalHoraFin = `${finalHoraFin}:00`;
+
+      const responseDto = await reservationsService.reprogramarReserva(id, {
+        fechaReserva,
+        horarioInicio: finalHoraInicio,
+        horarioFin: finalHoraFin,
+      });
+
+      setReservations((prev) =>
+        prev.map((r) => {
+          if (r.id !== id) return r;
+          return {
+            ...r,
+            date: responseDto.fechaReserva,
+            time: `${responseDto.horarioInicio.slice(0, 5)} - ${responseDto.horarioFin.slice(0, 5)}`,
+            status: "reservado",
+          };
+        })
+      );
+
+      return responseDto;
+    },
+    []
+  );
 
   const addPayment = useCallback(async (payment: Payment) => {
     setPayments((prev) => [payment, ...prev]);
@@ -286,96 +258,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (credentials: LoginRequestDto): Promise<boolean> => {
-      const response = await authService.login(credentials);
+      // 1. Autenticación: obtener token JWT
+      await authService.login(credentials);
       setIsLoggedIn(true);
 
-      const rawUser = response.usuario || response.user;
-      let targetUserId = response.id ?? response.userId ?? response.usuarioId;
-
-      // 1. Si el objeto usuario ya viene en la respuesta del login
-      if (rawUser) {
-        const mapped = mapUsuarioDtoToUser(rawUser);
+      // 2. Obtener perfil del usuario autenticado: GET /api/usuarios/me
+      try {
+        const profile = await userService.getProfile();
+        const mapped = mapUsuarioDtoToUser(profile);
         setUser(mapped);
-        if (rawUser.id) {
-          setCurrentUserId(rawUser.id);
-          targetUserId = rawUser.id;
-        }
-      } else if (response.nombre || response.name) {
-        // Los datos del usuario vienen en la raíz de response
-        const mapped = mapUsuarioDtoToUser(response as any);
-        setUser(mapped);
-        if (mapped.id) {
-          setCurrentUserId(mapped.id);
-          targetUserId = mapped.id;
-        }
-      } else {
-        // 2. Si no vino el objeto en el body, intentar extraer el ID del token JWT
-        const token = response.token || response.accessToken || response.jwt;
-        if (!targetUserId && token) {
-          try {
-            const parts = token.split(".");
-            if (parts.length === 3) {
-              const base64 = parts[1].replace(/-/g, "+").replace(/_/g, "/");
-              const decoded = JSON.parse(
-                decodeURIComponent(
-                  atob(base64)
-                    .split("")
-                    .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-                    .join("")
-                )
-              );
-              targetUserId = decoded.id ?? decoded.userId ?? decoded.sub;
-            }
-          } catch {}
-        }
-
-        // 3. Consultar el endpoint de Spring Boot: GET /api/usuarios/{id}
-        if (targetUserId) {
-          try {
-            setCurrentUserId(targetUserId);
-            const dto = await userService.getById(targetUserId);
-            setUser(mapUsuarioDtoToUser(dto));
-          } catch {
-            try {
-              const profile = await userService.getProfile();
-              setUser(mapUsuarioDtoToUser(profile));
-              if (profile.id) setCurrentUserId(profile.id);
-            } catch {}
-          }
-        } else {
-          try {
-            const profile = await userService.getProfile();
-            setUser(mapUsuarioDtoToUser(profile));
-            if (profile.id) setCurrentUserId(profile.id);
-          } catch {}
-        }
+        if (profile.id) setCurrentUserId(profile.id);
+      } catch {
+        // Si /usuarios/me falla, al menos guardar el DNI ingresado
+        setUser((prev) => ({
+          ...prev,
+          dni: credentials.dni,
+        }));
       }
 
-      // Asegurar que el DNI ingresado quede asociado
-      setUser((prev) => ({
-        ...prev,
-        dni: prev.dni || credentials.dni,
-      }));
-
-      // 4. Cargar datos protegidos del usuario desde el backend
-      try {
-        const backendReservations = await reservationsService.getAll();
-        if (Array.isArray(backendReservations)) {
-          setReservations(backendReservations);
-        }
-      } catch {}
-
+      // 3. Cargar instalaciones disponibles desde el backend: GET /api/instalaciones
       try {
         const backendServices = await servicesService.getAll();
         if (Array.isArray(backendServices) && backendServices.length > 0) {
           setServices(backendServices);
-        }
-      } catch {}
-
-      try {
-        const backendPayments = await paymentsService.getAll();
-        if (Array.isArray(backendPayments)) {
-          setPayments(backendPayments);
         }
       } catch {}
 
@@ -384,7 +289,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const logout = useCallback(async () => {
+  const logout = useCallback(() => {
+    authService.logout();
     setIsLoggedIn(false);
     setUser(EMPTY_USER);
     setMembership(EMPTY_MEMBERSHIP);
@@ -394,9 +300,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setServices([]);
     setPromotions([]);
     setCurrentUserId("");
-    try {
-      await authService.logout();
-    } catch {}
   }, []);
 
   return (
@@ -416,6 +319,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         refreshAll,
         addReservation,
         cancelReservation,
+        reprogramReservation,
         addPayment,
         payMembership,
         addPoints,

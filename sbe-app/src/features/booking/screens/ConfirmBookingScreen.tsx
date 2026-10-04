@@ -7,6 +7,7 @@ import {
   StatusBar,
   Alert,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,21 +15,16 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BookingStackParamList } from "../../../navigation/BookingStack";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
-import type { Reservation, Payment } from "../../../data/types";
+import { reservationsService } from "../../../api/services/reservationsService";
+import type { Reservation } from "../../../data/types";
+import { formatHora } from "../utils/bookingValidation";
 
 type Props = NativeStackScreenProps<BookingStackParamList, "ConfirmBooking">;
 
 export default function ConfirmBookingScreen({ navigation, route }: Props) {
-  const { serviceId, serviceName, date, time, price } = route.params;
-  const { membership, totalPoints, addReservation, addPayment } = useApp();
-  const [usePoints, setUsePoints] = useState(false);
-
-  const discount = Math.round(price * (membership.discountPercent / 100));
-  const afterDiscount = price - discount;
-  const pointsDiscount = usePoints ? Math.min(totalPoints * 10, afterDiscount) : 0;
-  const finalPrice = afterDiscount - pointsDiscount;
-  const pointsToUse = usePoints ? Math.ceil(pointsDiscount / 10) : 0;
-  const pointsEarned = Math.round(finalPrice / 50) * 10;
+  const { serviceId, serviceName, date, time, horaInicio, horaFin, price } = route.params;
+  const { user, addReservation } = useApp();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formattedDate = (() => {
     const d = new Date(date + "T12:00:00");
@@ -39,56 +35,80 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
     });
   })();
 
-  const handlePay = () => {
-    Alert.alert(
-      "Mercado Pago",
-      `Redirigiendo a Mercado Pago...\nMonto: $${finalPrice.toLocaleString("es-AR")}`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Simular pago exitoso",
-          onPress: () => {
-            const reservationId = `res-${Date.now()}`;
-            const reservation: Reservation = {
-              id: reservationId,
-              serviceId,
-              serviceName,
-              date,
-              time,
-              price,
-              discount: discount + pointsDiscount,
-              pointsUsed: pointsToUse,
-              pointsEarned,
-              status: "reservado",
-              createdAt: new Date().toISOString().split("T")[0],
-            };
-            addReservation(reservation);
+  const handleConfirmReservation = async () => {
+    setIsSubmitting(true);
+    try {
+      // Determinar horaInicio y horaFin en formato HH:mm:ss
+      let finalHoraInicio = horaInicio || "";
+      let finalHoraFin = horaFin || "";
 
-            const payment: Payment = {
-              id: `pay-${Date.now()}`,
-              concept: "reserva",
-              description: `${serviceName} — ${formattedDate}`,
-              amount: finalPrice,
-              date: new Date().toISOString().split("T")[0],
-              status: "aprobado",
-              reservationId,
-            };
-            addPayment(payment);
+      if (!finalHoraInicio || !finalHoraFin) {
+        const parts = (time || "").split(" - ");
+        if (parts.length >= 2) {
+          finalHoraInicio = parts[0].trim();
+          finalHoraFin = parts[1].trim();
+        }
+      }
 
-            Alert.alert(
-              "¡Reserva confirmada!",
-              `${serviceName}\n${formattedDate} a las ${time} hs\n\nSumaste ${pointsEarned} puntos 🎉`,
-              [
-                {
-                  text: "Ir al inicio",
-                  onPress: () => navigation.popToTop(),
-                },
-              ]
-            );
+      // Asegurar formato HH:mm:ss
+      if (finalHoraInicio.length === 5) finalHoraInicio = `${finalHoraInicio}:00`;
+      if (finalHoraFin.length === 5) finalHoraFin = `${finalHoraFin}:00`;
+
+      // Llamar al endpoint del backend: POST /api/reservas
+      const responseDto = await reservationsService.crearReserva({
+        fechaReserva: date,
+        horarioInicio: finalHoraInicio,
+        horarioFin: finalHoraFin,
+        idUsuario: Number(user.id) || 1,
+        idInstalacion: Number(serviceId),
+      });
+
+      // Actualizar estado en el contexto local
+      const newReservation: Reservation = {
+        id: String(responseDto.idReserva),
+        serviceId: String(responseDto.idInstalacion),
+        serviceName,
+        date: responseDto.fechaReserva,
+        time: `${formatHora(responseDto.horarioInicio)} - ${formatHora(responseDto.horarioFin)}`,
+        price: responseDto.montoReserva ?? price,
+        discount: 0,
+        pointsUsed: 0,
+        pointsEarned: Math.round((responseDto.montoReserva ?? price) / 50) * 10,
+        status: "reservado",
+        createdAt: new Date().toISOString().split("T")[0],
+      };
+
+      addReservation(newReservation);
+
+      Alert.alert(
+        "¡Reserva confirmada!",
+        `${serviceName}\n${formattedDate} · ${time} hs\n\nTu turno quedó registrado correctamente en el sistema.`,
+        [
+          {
+            text: "Ver mis reservas",
+            onPress: () => {
+              navigation.navigate("MyReservations");
+            },
           },
-        },
-      ]
-    );
+          {
+            text: "Ir al inicio",
+            onPress: () => {
+              navigation.popToTop();
+            },
+            style: "cancel",
+          },
+        ]
+      );
+    } catch (err: any) {
+      const serverMsg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "No se pudo completar la reserva. Verifique la disponibilidad del turno.";
+      Alert.alert("Error al confirmar reserva", serverMsg);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -100,6 +120,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         <TouchableOpacity
           onPress={() => navigation.goBack()}
           style={styles.backBtn}
+          activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
@@ -111,97 +132,83 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Tarjeta de resumen */}
+        {/* Tarjeta de resumen de reserva con mejor icono */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryIconWrap}>
-            <Ionicons name="calendar" size={28} color={Colors.primary} />
+            <Ionicons name="ticket" size={32} color={Colors.primary} />
           </View>
           <Text style={styles.summaryService}>{serviceName}</Text>
           <Text style={styles.summaryDate}>{formattedDate}</Text>
-          <Text style={styles.summaryTime}>{time} hs</Text>
+          <View style={styles.summaryTimeBadge}>
+            <Ionicons name="time-outline" size={14} color={Colors.primary} />
+            <Text style={styles.summaryTimeText}>{time} hs</Text>
+          </View>
         </View>
 
-        {/* Desglose de precio */}
-        <View style={styles.priceCard}>
-          <Text style={styles.priceTitle}>Detalle del pago</Text>
+        {/* Detalle de la reserva */}
+        <View style={styles.detailCard}>
+          <Text style={styles.detailTitle}>Detalle de la reserva</Text>
 
-          <View style={styles.priceRow}>
-            <Text style={styles.priceLabel}>Precio base</Text>
-            <Text style={styles.priceValue}>
-              ${price.toLocaleString("es-AR")}
-            </Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Instalación</Text>
+            <Text style={styles.detailValue}>{serviceName}</Text>
           </View>
 
-          {discount > 0 && (
-            <View style={styles.priceRow}>
-              <Text style={styles.discountLabel}>
-                Descuento socio {membership.type} (-{membership.discountPercent}%)
-              </Text>
-              <Text style={styles.discountValue}>
-                -${discount.toLocaleString("es-AR")}
-              </Text>
-            </View>
-          )}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Fecha solicitada</Text>
+            <Text style={styles.detailValue}>{date}</Text>
+          </View>
 
-          {/* Toggle puntos */}
-          {totalPoints > 0 && (
-            <TouchableOpacity
-              style={styles.pointsToggle}
-              onPress={() => setUsePoints(!usePoints)}
-              activeOpacity={0.8}
-            >
-              <View style={styles.pointsToggleLeft}>
-                <Ionicons
-                  name={usePoints ? "checkbox" : "square-outline"}
-                  size={22}
-                  color={usePoints ? Colors.primary : Colors.textSecondary}
-                />
-                <Text style={styles.pointsToggleText}>
-                  Usar mis puntos ({totalPoints} pts)
-                </Text>
-              </View>
-              {usePoints && (
-                <Text style={styles.discountValue}>
-                  -${pointsDiscount.toLocaleString("es-AR")}
-                </Text>
-              )}
-            </TouchableOpacity>
-          )}
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Horario</Text>
+            <Text style={styles.detailValue}>{time} hs</Text>
+          </View>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Usuario solicitante</Text>
+            <Text style={styles.detailValue}>{user.name || user.dni || "Socio SBE"}</Text>
+          </View>
 
           <View style={styles.divider} />
 
-          <View style={styles.priceRow}>
-            <Text style={styles.totalLabel}>Total a pagar</Text>
+          <View style={styles.detailRow}>
+            <Text style={styles.totalLabel}>Arancel base</Text>
             <Text style={styles.totalValue}>
-              ${finalPrice.toLocaleString("es-AR")}
-            </Text>
-          </View>
-
-          <View style={styles.pointsEarnedRow}>
-            <Ionicons name="star" size={14} color={Colors.accent} />
-            <Text style={styles.pointsEarnedText}>
-              Ganarás {pointsEarned} puntos con esta reserva
+              ${price.toLocaleString("es-AR")}
             </Text>
           </View>
         </View>
+
+        {/* Aviso de confirmación */}
+        <View style={styles.noticeCard}>
+          <Ionicons name="shield-checkmark-outline" size={20} color={Colors.info} />
+          <Text style={styles.noticeText}>
+            Al confirmar, el turno quedará bloqueado exclusivamente a tu nombre en la base de datos de SYSBE.
+          </Text>
+        </View>
       </ScrollView>
 
-      {/* Botón pagar */}
+      {/* Botón de Confirmación Directa */}
       <View style={styles.footer}>
         <TouchableOpacity
-          style={styles.payBtn}
-          onPress={handlePay}
+          style={[styles.confirmBtn, isSubmitting && styles.confirmBtnDisabled]}
+          onPress={handleConfirmReservation}
+          disabled={isSubmitting}
           activeOpacity={0.85}
         >
-          <Ionicons
-            name="card-outline"
-            size={20}
-            color={Colors.textOnPrimary}
-            style={{ marginRight: Spacing.sm }}
-          />
-          <Text style={styles.payBtnText}>
-            Pagar con Mercado Pago · ${finalPrice.toLocaleString("es-AR")}
-          </Text>
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={Colors.textOnPrimary} />
+          ) : (
+            <>
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={22}
+                color={Colors.textOnPrimary}
+                style={{ marginRight: Spacing.xs }}
+              />
+              <Text style={styles.confirmBtnText}>Confirmar reserva</Text>
+            </>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -235,10 +242,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: Spacing.base,
     ...Shadow.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
   summaryIconWrap: {
-    width: 56,
-    height: 56,
+    width: 64,
+    height: 64,
     borderRadius: Radius.full,
     backgroundColor: Colors.primaryTransparent,
     alignItems: "center",
@@ -250,103 +259,91 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textPrimary,
     marginBottom: Spacing.xs,
+    textAlign: "center",
   },
   summaryDate: {
-    fontSize: Typography.fontSize.base,
+    fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     textTransform: "capitalize",
+    marginBottom: Spacing.sm,
   },
-  summaryTime: {
-    fontSize: Typography.fontSize.md,
-    fontWeight: Typography.fontWeight.semibold,
+  summaryTimeBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.primaryTransparent,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 4,
+    borderRadius: Radius.full,
+  },
+  summaryTimeText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
-    marginTop: Spacing.xs,
   },
 
-  // Prices
-  priceCard: {
+  // Detail Card
+  detailCard: {
     backgroundColor: Colors.surface,
     borderRadius: Radius.lg,
     padding: Spacing.base,
+    marginBottom: Spacing.base,
     ...Shadow.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  priceTitle: {
-    fontSize: Typography.fontSize.md,
+  detailTitle: {
+    fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textPrimary,
     marginBottom: Spacing.md,
   },
-  priceRow: {
+  detailRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     marginBottom: Spacing.sm,
   },
-  priceLabel: {
-    fontSize: Typography.fontSize.base,
+  detailLabel: {
+    fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
   },
-  priceValue: {
-    fontSize: Typography.fontSize.base,
+  detailValue: {
+    fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.semibold,
     color: Colors.textPrimary,
-  },
-  discountLabel: {
-    fontSize: Typography.fontSize.base,
-    color: Colors.success,
-  },
-  discountValue: {
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
-    color: Colors.success,
-  },
-  pointsToggle: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: Colors.surfaceElevated,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    marginVertical: Spacing.sm,
-  },
-  pointsToggleLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.sm,
-  },
-  pointsToggleText: {
-    fontSize: Typography.fontSize.base,
-    color: Colors.textPrimary,
-    fontWeight: Typography.fontWeight.medium,
   },
   divider: {
     height: 1,
     backgroundColor: Colors.border,
-    marginVertical: Spacing.md,
+    marginVertical: Spacing.sm,
   },
   totalLabel: {
-    fontSize: Typography.fontSize.lg,
+    fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.textPrimary,
   },
   totalValue: {
-    fontSize: Typography.fontSize.xl,
-    fontWeight: Typography.fontWeight.extrabold,
+    fontSize: Typography.fontSize.lg,
+    fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
   },
-  pointsEarnedRow: {
+
+  noticeCard: {
     flexDirection: "row",
     alignItems: "center",
-    gap: Spacing.xs,
-    marginTop: Spacing.md,
-    backgroundColor: Colors.warningLight,
-    padding: Spacing.sm,
+    gap: Spacing.sm,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    padding: Spacing.md,
     borderRadius: Radius.md,
   },
-  pointsEarnedText: {
-    fontSize: Typography.fontSize.sm,
-    color: Colors.warning,
-    fontWeight: Typography.fontWeight.semibold,
+  noticeText: {
+    flex: 1,
+    fontSize: Typography.fontSize.xs,
+    color: "#1E40AF",
+    lineHeight: 18,
   },
 
   // Footer
@@ -355,24 +352,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    padding: Spacing.base,
     backgroundColor: Colors.surface,
+    padding: Spacing.base,
     borderTopWidth: 1,
     borderTopColor: Colors.border,
     ...Shadow.md,
   },
-  payBtn: {
+  confirmBtn: {
     flexDirection: "row",
-    backgroundColor: Colors.primary,
-    borderRadius: Radius.md,
-    height: 54,
     alignItems: "center",
     justifyContent: "center",
-    ...Shadow.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.md,
+    paddingVertical: Spacing.base,
   },
-  payBtnText: {
+  confirmBtnDisabled: {
+    opacity: 0.6,
+  },
+  confirmBtnText: {
     color: Colors.textOnPrimary,
-    fontSize: Typography.fontSize.md,
+    fontSize: Typography.fontSize.base,
     fontWeight: Typography.fontWeight.bold,
   },
 });

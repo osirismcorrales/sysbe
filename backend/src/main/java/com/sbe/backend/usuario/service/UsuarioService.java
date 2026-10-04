@@ -119,10 +119,10 @@ public class UsuarioService {
     }
 
     @Transactional
-    public UsuarioResponseDto actualizarPerfilPropio(String emailActual, UsuarioUpdateMeDto dto) {
+    public UsuarioResponseDto actualizarPerfilPropio(String dniActual, UsuarioUpdateMeDto dto) {
         // 1. Buscar al usuario actual usando el email verificado de la sesión
-        Usuario usuario = usuarioRepository.findByEmail(emailActual)
-                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con el email: " + emailActual));
+        Usuario usuario = usuarioRepository.findByDni(dniActual)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado con el dni: " + dniActual));
 
         // 2. Si intenta cambiar su email, verificar que nadie más lo esté usando
         if (!usuario.getEmail().equalsIgnoreCase(dto.email())) {
@@ -144,6 +144,20 @@ public class UsuarioService {
         }
 
         // Con @Transactional los cambios se sincronizan automáticamente en la base de datos
+        return usuarioMapper.toResponseDto(usuario);
+    }
+
+    public UsuarioResponseDto buscarPorEmail(String email) {
+        Usuario usuario = usuarioRepository.findByEmail(email)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
+
+        return usuarioMapper.toResponseDto(usuario);
+    }
+
+    public UsuarioResponseDto buscarPorDni(String dni) {
+        Usuario usuario = usuarioRepository.findByDni(dni)
+                .orElseThrow(() -> new NoSuchElementException("Usuario no encontrado"));
+
         return usuarioMapper.toResponseDto(usuario);
     }
 

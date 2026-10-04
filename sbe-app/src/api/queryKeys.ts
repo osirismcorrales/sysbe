@@ -18,9 +18,15 @@ export const queryKeys = {
   },
   services: {
     all: ["services"] as const,
-    list: (category?: string) => [...queryKeys.services.all, "list", { category }] as const,
-    detail: (id: string) => [...queryKeys.services.all, "detail", id] as const,
-    slots: (id: string, date: string) => [...queryKeys.services.all, "slots", id, date] as const,
+    list: () => [...queryKeys.services.all, "list"] as const,
+    detail: (id: string | number) => [...queryKeys.services.all, "detail", String(id)] as const,
+  },
+  horarios: {
+    all: ["horarios"] as const,
+    disponibilidad: (idInstalacion: number | string, fecha: string) =>
+      [...queryKeys.horarios.all, "disponibilidad", String(idInstalacion), fecha] as const,
+    plantillas: (idInstalacion?: number | string) =>
+      [...queryKeys.horarios.all, "plantillas", String(idInstalacion ?? "all")] as const,
   },
   reservations: {
     all: ["reservations"] as const,

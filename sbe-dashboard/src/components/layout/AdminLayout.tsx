@@ -44,8 +44,8 @@ export function AdminLayout() {
       {/* Sidebar (Left) */}
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
-      {/* Main Area (Right) */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
+      {/* Main Area (Right) — offset by sidebar width on desktop */}
+      <div className="flex-1 flex flex-col h-full overflow-hidden lg:ml-64">
         {/* Header */}
         <Header
           title={getPageTitle(location.pathname)}

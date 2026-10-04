@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   Pressable,
   Keyboard,
   ActivityIndicator,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -19,6 +18,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../../navigation/AppNavigator";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
+import { getServerUrl, updateApiBaseUrl } from "../../../api";
+import ServerConfigModal from "../components/ServerConfigModal";
 
 type Props = {
   navigation: NativeStackNavigationProp<RootStackParamList, "Login">;
@@ -30,6 +31,15 @@ export default function LoginScreen({ navigation }: Props) {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ dni?: string; password?: string }>({});
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [showServerConfig, setShowServerConfig] = useState(false);
+
+  // Restaurar la URL del servidor guardada al montar la pantalla
+  useEffect(() => {
+    getServerUrl().then((url) => {
+      updateApiBaseUrl(url);
+    });
+  }, []);
 
   const validate = (): boolean => {
     const newErrors: { dni?: string; password?: string } = {};
@@ -40,8 +50,8 @@ export default function LoginScreen({ navigation }: Props) {
     }
     if (!password.trim()) {
       newErrors.password = "La contraseña no puede estar vacía";
-    } else if (password.length < 4) {
-      newErrors.password = "Mínimo 4 caracteres";
+    } else if (password.length < 8) {
+      newErrors.password = "Mínimo 8 caracteres";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -52,6 +62,7 @@ export default function LoginScreen({ navigation }: Props) {
   const handleLogin = async () => {
     if (!validate()) return;
     setIsLoading(true);
+    setLoginError(null);
     try {
       // POST http://localhost:8080/api/auth/login con LoginRequestDto
       await login({
@@ -63,10 +74,7 @@ export default function LoginScreen({ navigation }: Props) {
       const errorMsg =
         err?.message ||
         "No se pudo iniciar sesión. Verificá que tu DNI y contraseña sean correctos.";
-
-      Alert.alert("Error de autenticación", errorMsg, [
-        { text: "Entendido" },
-      ]);
+      setLoginError(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -76,12 +84,31 @@ export default function LoginScreen({ navigation }: Props) {
     <View style={styles.outerContainer}>
       <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
 
+      {/* Modal de configuración de servidor */}
+      <ServerConfigModal
+        visible={showServerConfig}
+        onClose={() => setShowServerConfig(false)}
+      />
+
       <SafeAreaView style={styles.container} edges={["top"]}>
         <View style={styles.keyboardAvoiding}>
           <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
             <View style={styles.innerLayout}>
               {/* ── Header con fondo rojo institucional ── */}
               <View style={styles.header}>
+                {/* Botón configurar servidor */}
+                <Pressable
+                  style={styles.serverConfigBtn}
+                  onPress={() => setShowServerConfig(true)}
+                  hitSlop={12}
+                >
+                  <Ionicons
+                    name="settings-outline"
+                    size={20}
+                    color="rgba(255,255,255,0.5)"
+                  />
+                </Pressable>
+
                 {/* Logo mejorado SBE UNSE — doble anillo */}
                 <View style={styles.logoOuterRing}>
                   <View style={styles.logoInnerRing}>
@@ -120,6 +147,7 @@ export default function LoginScreen({ navigation }: Props) {
                     onChangeText={(t) => {
                       setDni(t);
                       if (errors.dni) setErrors((e) => ({ ...e, dni: undefined }));
+                      if (loginError) setLoginError(null);
                     }}
                     keyboardType="numeric"
                     autoComplete="username"
@@ -152,6 +180,7 @@ export default function LoginScreen({ navigation }: Props) {
                       setPassword(t);
                       if (errors.password)
                         setErrors((e) => ({ ...e, password: undefined }));
+                      if (loginError) setLoginError(null);
                     }}
                     secureTextEntry={!showPassword}
                     autoComplete="password"
@@ -172,6 +201,19 @@ export default function LoginScreen({ navigation }: Props) {
                   <Text style={styles.errorText}>{errors.password}</Text>
                 )}
 
+                {/* Mensaje de error del backend */}
+                {loginError && (
+                  <View style={styles.loginErrorContainer}>
+                    <Ionicons
+                      name="alert-circle-outline"
+                      size={16}
+                      color={Colors.error}
+                      style={{ marginRight: Spacing.xs }}
+                    />
+                    <Text style={styles.loginErrorText}>{loginError}</Text>
+                  </View>
+                )}
+
                 {/* Botón Ingresar */}
                 <TouchableOpacity
                   style={[styles.btnPrimary, isLoading && { opacity: 0.7 }]}
@@ -184,43 +226,6 @@ export default function LoginScreen({ navigation }: Props) {
                   ) : (
                     <Text style={styles.btnPrimaryText}>Ingresar</Text>
                   )}
-                </TouchableOpacity>
-
-                {/* Divisor */}
-                <View style={styles.divider}>
-                  <View style={styles.dividerLine} />
-                  <Text style={styles.dividerText}>o</Text>
-                  <View style={styles.dividerLine} />
-                </View>
-
-                {/* Botón SIU Guaraní */}
-                <TouchableOpacity
-                  style={styles.btnGuarani}
-                  onPress={() => {
-                    Alert.alert(
-                      "SIU Guaraní",
-                      "El acceso con credenciales SIU Guaraní se encuentra en proceso de vinculación institucional.",
-                      [{ text: "Entendido" }]
-                    );
-                  }}
-                  activeOpacity={0.85}
-                >
-                  <Ionicons
-                    name="school-outline"
-                    size={18}
-                    color={Colors.textOnAccent}
-                    style={{ marginRight: Spacing.sm }}
-                  />
-                  <Text style={styles.btnGuaraniText}>
-                    Ingresar con SIU Guaraní
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Olvidaste tu contraseña */}
-                <TouchableOpacity style={styles.forgotBtn}>
-                  <Text style={styles.forgotText}>
-                    ¿Olvidaste tu contraseña?
-                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -248,6 +253,18 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.base,
     marginBottom: Spacing.md,
+  },
+  serverConfigBtn: {
+    position: "absolute",
+    top: Spacing.md,
+    right: Spacing.base,
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 10,
   },
   logoOuterRing: {
     width: 100,
@@ -362,35 +379,20 @@ const styles = StyleSheet.create({
     fontWeight: Typography.fontWeight.bold,
     letterSpacing: 0.5,
   },
-  divider: {
+  loginErrorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginVertical: Spacing.lg,
-  },
-  dividerLine: { flex: 1, height: 1, backgroundColor: Colors.border },
-  dividerText: {
-    color: Colors.textSecondary,
-    fontSize: Typography.fontSize.sm,
-    marginHorizontal: Spacing.md,
-  },
-  btnGuarani: {
-    flexDirection: "row",
-    backgroundColor: Colors.accentLight,
+    backgroundColor: "rgba(220, 38, 38, 0.08)",
     borderRadius: Radius.md,
-    height: 52,
-    alignItems: "center",
-    justifyContent: "center",
     borderWidth: 1,
-    borderColor: Colors.accent,
+    borderColor: "rgba(220, 38, 38, 0.25)",
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginTop: Spacing.sm,
   },
-  btnGuaraniText: {
-    color: Colors.textOnAccent,
-    fontSize: Typography.fontSize.base,
-    fontWeight: Typography.fontWeight.semibold,
-  },
-  forgotBtn: { alignItems: "center", marginTop: Spacing.lg },
-  forgotText: {
-    color: Colors.primary,
+  loginErrorText: {
+    flex: 1,
+    color: Colors.error,
     fontSize: Typography.fontSize.sm,
     fontWeight: Typography.fontWeight.medium,
   },

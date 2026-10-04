@@ -50,16 +50,28 @@ public class UsuarioController {
         return ResponseEntity.ok(usuarioService.actualizar(id, dto));
     }
 
+    // GET http://localhost:8080/api/usuarios/me
+    @GetMapping("/me")
+    public ResponseEntity<UsuarioResponseDto> obtenerPerfilPropio(
+            Authentication authentication) {
+
+        String dniActual = authentication.getName();
+
+        return ResponseEntity.ok(
+                usuarioService.buscarPorDni(dniActual)
+        );
+    }
+
     // PUT http://localhost:8080/api/usuarios/me
     @PutMapping("/me")
     public ResponseEntity<UsuarioResponseDto> actualizarPerfilPropio(
             Authentication authentication,
             @Valid @RequestBody UsuarioUpdateMeDto dto) {
 
-        // Obtenemos el identificador (email) del usuario actualmente autenticado
-        String emailActual = authentication.getName();
+        // Obtenemos el identificador del usuario actualmente autenticado
+        String dniActual = authentication.getName();
 
-        UsuarioResponseDto usuarioActualizado = usuarioService.actualizarPerfilPropio(emailActual, dto);
+        UsuarioResponseDto usuarioActualizado = usuarioService.actualizarPerfilPropio(dniActual, dto);
         return ResponseEntity.ok(usuarioActualizado);
     }
 
