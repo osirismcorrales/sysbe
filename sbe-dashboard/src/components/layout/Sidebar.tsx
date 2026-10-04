@@ -7,6 +7,7 @@ import {
   CalendarDays,
   Dumbbell,
   Wallet,
+  FileText,
   ClipboardList,
   Gift,
   LogOut,
@@ -54,9 +55,10 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
       ]
     },
     {
-      title: 'FINANZAS Y REPORTES',
+      title: 'ANÁLISIS Y CONTROL',
       items: [
-        { name: 'Finanzas', to: '/finanzas', icon: Wallet }
+        { name: 'Finanzas', to: '/finanzas', icon: Wallet },
+        { name: 'Reportes', to: '/reportes', icon: FileText }
       ]
     },
     {
