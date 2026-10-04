@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
 
@@ -26,7 +27,13 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 export default function PaymentsScreen() {
-  const { membership, payments, payMembership } = useApp();
+  const { membership, payments, payMembership, refreshAll } = useApp();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAll();
+    }, [refreshAll])
+  );
 
   const handlePayMembership = () => {
     Alert.alert(
@@ -38,7 +45,10 @@ export default function PaymentsScreen() {
           text: "Simular pago exitoso",
           onPress: () => {
             payMembership();
-            Alert.alert("¡Cuota pagada!", "Tu cuota mensual fue registrada correctamente.\nSumaste 100 puntos 🎉");
+            Alert.alert(
+              "¡Cuota pagada!",
+              "Tu cuota mensual fue registrada y acreditada correctamente."
+            );
           },
         },
       ]
@@ -122,12 +132,50 @@ export default function PaymentsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Historial de pagos</Text>
           {payments.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Ionicons name="receipt-outline" size={40} color={Colors.textDisabled} />
-              <Text style={styles.emptyTitle}>Sin pagos registrados</Text>
-              <Text style={styles.emptySubtitle}>
-                Los pagos de tus reservas y cuotas aparecerán reflejados aquí.
-              </Text>
+            <View>
+              <View style={styles.emptyCard}>
+                <Ionicons name="receipt-outline" size={36} color={Colors.textDisabled} />
+                <Text style={styles.emptyTitle}>Sin pagos registrados en esta cuenta</Text>
+                <Text style={styles.emptySubtitle}>
+                  Los pagos de tus reservas y cuotas aparecerán reflejados aquí una vez procesados.
+                </Text>
+              </View>
+
+              {/* Ejemplo ilustrativo de cómo se visualizan los pagos */}
+              <View style={styles.exampleContainer}>
+                <View style={styles.exampleHeader}>
+                  <Ionicons name="information-circle-outline" size={18} color={Colors.primary} />
+                  <Text style={styles.exampleTitle}>Ejemplo de cómo se reflejan los pagos:</Text>
+                </View>
+
+                <View style={[styles.paymentCard, styles.exampleCard]}>
+                  <View style={styles.paymentIconWrap}>
+                    <Ionicons name="calendar-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentDesc}>Reserva Cancha de Pádel (Ejemplo)</Text>
+                    <Text style={styles.paymentDate}>10 de Octubre · Mercado Pago</Text>
+                  </View>
+                  <View style={styles.paymentRight}>
+                    <Text style={styles.paymentAmount}>$4.500</Text>
+                    <Text style={[styles.paymentStatus, { color: Colors.success }]}>Aprobado</Text>
+                  </View>
+                </View>
+
+                <View style={[styles.paymentCard, styles.exampleCard]}>
+                  <View style={styles.paymentIconWrap}>
+                    <Ionicons name="card-outline" size={20} color={Colors.primary} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.paymentDesc}>Cuota mensual de membresía (Ejemplo)</Text>
+                    <Text style={styles.paymentDate}>05 de Octubre · Transferencia</Text>
+                  </View>
+                  <View style={styles.paymentRight}>
+                    <Text style={styles.paymentAmount}>$12.000</Text>
+                    <Text style={[styles.paymentStatus, { color: Colors.warning }]}>Pendiente</Text>
+                  </View>
+                </View>
+              </View>
             </View>
           ) : (
             payments.map((p) => (
@@ -319,5 +367,26 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     color: Colors.textSecondary,
     textAlign: "center",
+  },
+  exampleContainer: {
+    marginTop: Spacing.xl,
+  },
+  exampleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  exampleTitle: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  exampleCard: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    opacity: 0.9,
   },
 });

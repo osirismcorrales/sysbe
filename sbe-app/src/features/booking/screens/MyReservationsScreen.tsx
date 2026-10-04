@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
 import { useDisponibilidad } from "../../../api/hooks/useDisponibilidadQuery";
+import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { BookingStackParamList } from "../../../navigation/BookingStack";
 import type { Reservation, BloqueDto } from "../../../data/types";
@@ -45,6 +46,12 @@ type Filter = "activas" | "pasadas";
 export default function MyReservationsScreen({ navigation }: Props) {
   const { reservations, cancelReservation, reprogramReservation, refreshAll } = useApp();
   const [filter, setFilter] = useState<Filter>("activas");
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAll();
+    }, [refreshAll])
+  );
 
   // Estado para reprogramación
   const [reprogramTarget, setReprogramTarget] = useState<Reservation | null>(null);

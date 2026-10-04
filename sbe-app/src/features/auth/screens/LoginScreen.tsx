@@ -7,6 +7,7 @@ import {
   StyleSheet,
   StatusBar,
   KeyboardAvoidingView,
+  ScrollView,
   Platform,
   Pressable,
   Keyboard,
@@ -90,10 +91,20 @@ export default function LoginScreen({ navigation }: Props) {
         onClose={() => setShowServerConfig(false)}
       />
 
-      <SafeAreaView style={styles.container} edges={["top"]}>
-        <View style={styles.keyboardAvoiding}>
-          <Pressable onPress={Keyboard.dismiss} style={{ flex: 1 }}>
-            <View style={styles.innerLayout}>
+      <SafeAreaView style={styles.container} edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          style={styles.keyboardAvoiding}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 0}
+        >
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <Pressable onPress={Keyboard.dismiss} style={styles.pressableContainer}>
+              <View style={styles.innerLayout}>
               {/* ── Header con fondo rojo institucional ── */}
               <View style={styles.header}>
                 {/* Botón configurar servidor */}
@@ -230,7 +241,8 @@ export default function LoginScreen({ navigation }: Props) {
               </View>
             </View>
           </Pressable>
-        </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
       </SafeAreaView>
     </View>
   );
@@ -240,11 +252,18 @@ const styles = StyleSheet.create({
   outerContainer: { flex: 1, backgroundColor: Colors.primary },
   container: { flex: 1, backgroundColor: Colors.primary },
   keyboardAvoiding: { flex: 1 },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
+  pressableContainer: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   innerLayout: {
-    flex: 1,
     justifyContent: "center",
     paddingHorizontal: Spacing.lg,
-    paddingBottom: 100, // Empuja el formulario hacia arriba para que el teclado no lo tape
+    paddingVertical: Spacing.xl,
   },
 
   // ── Header ──

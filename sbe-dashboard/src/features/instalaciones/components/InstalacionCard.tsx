@@ -8,7 +8,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from '../../../components/ui/Card';
 import Badge from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { Dumbbell, Edit, Clock, Calendar, Check, AlertCircle } from 'lucide-react';
+import { CalendarCheck, Edit, Clock, Calendar, Check, AlertCircle } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { DIAS_SEMANA_CONFIG, type DiaSemana } from '../services/plantillasHorarioApi';
 
@@ -69,7 +69,7 @@ export function InstalacionCard({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
             <div className="p-1.5 bg-red-50 text-brand-red rounded-lg border border-red-100 shadow-2xs shrink-0">
-              <Dumbbell className="h-3.5 w-3.5" />
+              <CalendarCheck className="h-3.5 w-3.5" />
             </div>
             <div className="min-w-0">
               <CardTitle className="text-xs font-bold text-slate-900 leading-tight truncate">

@@ -17,7 +17,7 @@ import { useUserProfile } from "../../../api/hooks/useUserQuery";
 import { mapUsuarioDtoToUser } from "../../../data/types";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { ProfileStackParamList } from "../../../navigation/ProfileStack";
-import type { CompositeScreenProps } from "@react-navigation/native";
+import { CompositeScreenProps, useFocusEffect } from "@react-navigation/native";
 import type { BottomTabScreenProps } from "@react-navigation/bottom-tabs";
 import type { AppTabsParamList } from "../../../navigation/AppTabs";
 
@@ -27,11 +27,19 @@ type Props = CompositeScreenProps<
 >;
 
 export default function ProfileScreen({ navigation }: Props) {
-  const { user, totalPoints, points, promotions, redeemPromotion, logout } = useApp();
+  const { user, totalPoints, points, promotions, redeemPromotion, logout, refreshAll } = useApp();
 
   // Consulta al backend Spring Boot: GET /api/usuarios/me
   const { data: userDto, isFetching, refetch } = useUserProfile();
   const displayUser = userDto ? mapUsuarioDtoToUser(userDto) : user;
+
+  // Refrescar al entrar a la pantalla
+  useFocusEffect(
+    React.useCallback(() => {
+      refetch();
+      refreshAll();
+    }, [refetch, refreshAll])
+  );
 
   const handleLogout = () => {
     Alert.alert("Cerrar sesión", "¿Estás seguro que querés cerrar sesión?", [
@@ -162,26 +170,34 @@ export default function ProfileScreen({ navigation }: Props) {
               </View>
             </View>
 
-            {displayUser.categoriaObj && (
-              <View style={styles.categoryBenefitsRow}>
-                {displayUser.categoriaObj.descuento !== undefined && (
+            {displayUser.categoriaObj && (() => {
+              const tipoSocio = (displayUser.categoriaObj?.tipoSocio || "").toUpperCase();
+              const isNoSocio = tipoSocio === "NO_SOCIO" || displayUser.category === "No Socio" || !tipoSocio;
+              const isSocioInterno = tipoSocio === "SOCIO_INTERNO" || displayUser.category.includes("Interno");
+              const porcentaje = displayUser.categoriaObj?.descuento ?? (isNoSocio ? 15 : isSocioInterno ? 20 : 0);
+
+              return (
+                <View style={styles.categoryBenefitsRow}>
                   <View style={styles.categoryBenefitItem}>
-                    <Text style={styles.benefitValue}>
-                      {displayUser.categoriaObj.descuento}%
+                    <Text
+                      style={[
+                        styles.benefitValue,
+                        isNoSocio
+                          ? { color: Colors.warning }
+                          : isSocioInterno
+                          ? { color: Colors.success }
+                          : { color: Colors.textPrimary },
+                      ]}
+                    >
+                      {isNoSocio ? `+${porcentaje}%` : isSocioInterno ? `-${porcentaje}%` : "Tarifa base"}
                     </Text>
-                    <Text style={styles.benefitLabel}>Descuento en reservas</Text>
-                  </View>
-                )}
-                {displayUser.categoriaObj.cuotaMensual !== undefined && (
-                  <View style={styles.categoryBenefitItem}>
-                    <Text style={styles.benefitValue}>
-                      ${Number(displayUser.categoriaObj.cuotaMensual).toLocaleString("es-AR")}
+                    <Text style={styles.benefitLabel}>
+                      {isNoSocio ? "Recargo en reservas" : isSocioInterno ? "Descuento en reservas" : "Arancel estándar"}
                     </Text>
-                    <Text style={styles.benefitLabel}>Cuota mensual</Text>
                   </View>
-                )}
-              </View>
-            )}
+                </View>
+              );
+            })()}
           </View>
         </View>
 

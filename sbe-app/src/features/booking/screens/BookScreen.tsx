@@ -245,7 +245,7 @@ export default function BookScreen({ navigation }: Props) {
                       ]}
                     >
                       <Ionicons
-                        name="fitness-outline"
+                        name="calendar-outline"
                         size={24}
                         color={isSelected ? Colors.textOnPrimary : Colors.primary}
                       />

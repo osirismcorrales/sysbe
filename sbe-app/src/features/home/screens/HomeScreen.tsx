@@ -15,7 +15,7 @@ import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
 import type { BottomTabNavigationProp } from "@react-navigation/bottom-tabs";
 import type { AppTabsParamList } from "../../../navigation/AppTabs";
-import type { CompositeNavigationProp } from "@react-navigation/native";
+import { CompositeNavigationProp, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../../navigation/AppNavigator";
 
@@ -39,6 +39,12 @@ const STATUS_BADGE: Record<
 export default function HomeScreen({ navigation }: Props) {
   const { user, totalPoints, reservations, refreshAll, isLoadingUser } = useApp();
   const insets = useSafeAreaInsets();
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshAll();
+    }, [refreshAll])
+  );
 
   const latestReservations = reservations
     .filter((r) => r.status !== "cancelado")

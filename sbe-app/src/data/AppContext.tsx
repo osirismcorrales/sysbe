@@ -18,6 +18,7 @@ import {
   reservationsService,
   paymentsService,
   getAuthToken,
+  queryClient,
 } from "../api";
 
 // ── Tipo del contexto ────────────────────────────────────────────────────────
@@ -71,8 +72,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
 
-  // Calcular puntos totales a partir de los puntos acumulados del backend (puntosAc) + movimientos locales
-  const totalPoints = (user.puntosAcumulados || 0) + points.reduce((sum, p) => sum + p.amount, 0);
+  // Los puntos provienen exclusivamente del backend (puntosAc)
+  const totalPoints = user.puntosAcumulados || 0;
 
   // Cargar usuario real desde Spring Boot: GET /api/usuarios/me
   const refreshUser = useCallback(async () => {
@@ -87,6 +88,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const mapped = mapUsuarioDtoToUser(dto);
       setUser(mapped);
       if (dto.id) setCurrentUserId(dto.id);
+
+      if (dto.categoria && typeof dto.categoria === "object") {
+        const cat = dto.categoria;
+        setMembership({
+          type:
+            cat.tipoSocio === "INTERNO"
+              ? "Interno"
+              : cat.tipoSocio === "EXTERNO"
+              ? "Externo"
+              : "No Socio",
+          monthlyFee: cat.cuotaMensual ?? 0,
+          discountPercent: cat.descuento ?? 0,
+          dueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split("T")[0],
+          isPaid: false,
+        });
+      }
     } catch (err) {
       if (__DEV__) {
         console.warn("[AppContext] No se pudo cargar perfil del usuario:", err);
@@ -134,16 +151,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addReservation = useCallback(async (reservation: Reservation) => {
     setReservations((prev) => [reservation, ...prev]);
-
-    if (reservation.pointsEarned > 0) {
-      const pointMovement: PointMovement = {
-        id: `pt-${Date.now()}`,
-        date: new Date().toISOString().split("T")[0],
-        description: `Reserva ${reservation.serviceName}`,
-        amount: reservation.pointsEarned,
-      };
-      setPoints((prev) => [pointMovement, ...prev]);
-    }
+    // Regla: No añadir puntos desde el frontend
   }, []);
 
   const cancelReservation = useCallback(async (id: string) => {
@@ -209,7 +217,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const payMembership = useCallback(async () => {
+  const payMembership = useCallback(() => {
     setMembership((prev) => ({ ...prev, isPaid: true }));
     const payment: Payment = {
       id: `pay-${Date.now()}`,
@@ -220,22 +228,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       status: "aprobado",
     };
     setPayments((prev) => [payment, ...prev]);
-
-    const pointMovement: PointMovement = {
-      id: `pt-${Date.now()}`,
-      date: new Date().toISOString().split("T")[0],
-      description: "Pago de cuota mensual",
-      amount: 100,
-    };
-    setPoints((prev) => [pointMovement, ...prev]);
-
-    try {
-      await paymentsService.payMembership();
-    } catch (err) {
-      if (__DEV__) {
-        console.warn("[AppContext] Error al registrar pago de membresía en backend:", err);
-      }
-    }
+    // Regla: No enviar al backend (no implementado aún en el backend)
   }, [membership.monthlyFee]);
 
   const addPoints = useCallback((movement: PointMovement) => {
@@ -258,40 +251,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     async (credentials: LoginRequestDto): Promise<boolean> => {
-      // 1. Autenticación: obtener token JWT
+      // 1. Limpiar datos y caché de sesión previa por completo
+      queryClient.clear();
+      setUser(EMPTY_USER);
+      setMembership(EMPTY_MEMBERSHIP);
+      setPoints([]);
+      setReservations([]);
+      setPayments([]);
+      setServices([]);
+      setCurrentUserId("");
+
+      // 2. Autenticación: obtener token JWT
       await authService.login(credentials);
       setIsLoggedIn(true);
 
-      // 2. Obtener perfil del usuario autenticado: GET /api/usuarios/me
-      try {
-        const profile = await userService.getProfile();
-        const mapped = mapUsuarioDtoToUser(profile);
-        setUser(mapped);
-        if (profile.id) setCurrentUserId(profile.id);
-      } catch {
-        // Si /usuarios/me falla, al menos guardar el DNI ingresado
-        setUser((prev) => ({
-          ...prev,
-          dni: credentials.dni,
-        }));
-      }
-
-      // 3. Cargar instalaciones disponibles desde el backend: GET /api/instalaciones
-      try {
-        const backendServices = await servicesService.getAll();
-        if (Array.isArray(backendServices) && backendServices.length > 0) {
-          setServices(backendServices);
-        }
-      } catch {}
+      // 3. Recargar perfil y reservas reales para la nueva cuenta
+      await refreshAll();
 
       return true;
     },
-    []
+    [refreshAll]
   );
 
   const logout = useCallback(() => {
     authService.logout();
+    queryClient.clear();
     setIsLoggedIn(false);
+    setCurrentUserId("");
     setUser(EMPTY_USER);
     setMembership(EMPTY_MEMBERSHIP);
     setPoints([]);
@@ -299,7 +285,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPayments([]);
     setServices([]);
     setPromotions([]);
-    setCurrentUserId("");
   }, []);
 
   return (

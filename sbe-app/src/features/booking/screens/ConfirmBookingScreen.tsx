@@ -16,6 +16,7 @@ import type { BookingStackParamList } from "../../../navigation/BookingStack";
 import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
 import { reservationsService } from "../../../api/services/reservationsService";
+import { disponibilidadService } from "../../../api/services/disponibilidadService";
 import type { Reservation } from "../../../data/types";
 import { formatHora } from "../utils/bookingValidation";
 
@@ -34,6 +35,22 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
       month: "long",
     });
   })();
+
+  // Determinar condición de socio y cálculo exacto según reglas de negocio
+  const tipoSocio = (user.categoriaObj?.tipoSocio || "").toUpperCase();
+  const isNoSocio = tipoSocio === "NO_SOCIO" || user.category === "No Socio" || !tipoSocio;
+  const isSocioInterno = tipoSocio === "SOCIO_INTERNO" || user.category.includes("Interno");
+  const porcentaje = user.categoriaObj?.descuento ?? (isNoSocio ? 15 : isSocioInterno ? 20 : 0);
+
+  const montoVariacion = Math.round((price * porcentaje) / 100);
+  let totalEstimado = price;
+  if (isNoSocio) {
+    totalEstimado = price + montoVariacion; // Recargo para No Socio
+  } else if (isSocioInterno) {
+    totalEstimado = Math.max(0, price - montoVariacion); // Descuento para Socio Interno
+  } else {
+    totalEstimado = price; // Tarifa regular para Socio Externo
+  }
 
   const handleConfirmReservation = async () => {
     setIsSubmitting(true);
@@ -54,7 +71,27 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
       if (finalHoraInicio.length === 5) finalHoraInicio = `${finalHoraInicio}:00`;
       if (finalHoraFin.length === 5) finalHoraFin = `${finalHoraFin}:00`;
 
-      // Llamar al endpoint del backend: POST /api/reservas
+      // 1. RE-VERIFICAR DISPONIBILIDAD ANTES DE ENVIAR LA RESERVA
+      try {
+        const bloques = await disponibilidadService.consultarDisponibilidad(Number(serviceId), date);
+        const horaPrefix = finalHoraInicio.slice(0, 5);
+        const bloqueElegido = bloques.find((b) => b.horaInicio.startsWith(horaPrefix));
+
+        if (!bloqueElegido || !bloqueElegido.disponible) {
+          Alert.alert(
+            "Turno no disponible",
+            "La instalación ya no se encuentra disponible en el horario seleccionado. Por favor, selecciona otro turno o fecha."
+          );
+          setIsSubmitting(false);
+          return;
+        }
+      } catch (dispErr) {
+        if (__DEV__) {
+          console.warn("[ConfirmBookingScreen] No se pudo reconfirmar disponibilidad:", dispErr);
+        }
+      }
+
+      // 2. Llamar al endpoint del backend: POST /api/reservas
       const responseDto = await reservationsService.crearReserva({
         fechaReserva: date,
         horarioInicio: finalHoraInicio,
@@ -63,17 +100,17 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         idInstalacion: Number(serviceId),
       });
 
-      // Actualizar estado en el contexto local
+      // 3. Actualizar estado en el contexto local (sin añadir puntos desde el frontend)
       const newReservation: Reservation = {
         id: String(responseDto.idReserva),
         serviceId: String(responseDto.idInstalacion),
         serviceName,
         date: responseDto.fechaReserva,
         time: `${formatHora(responseDto.horarioInicio)} - ${formatHora(responseDto.horarioFin)}`,
-        price: responseDto.montoReserva ?? price,
-        discount: 0,
+        price: responseDto.montoReserva ?? totalEstimado,
+        discount: isSocioInterno ? montoVariacion : 0,
         pointsUsed: 0,
-        pointsEarned: Math.round((responseDto.montoReserva ?? price) / 50) * 10,
+        pointsEarned: 0, // Regla: Los puntos son gestionados exclusivamente por el backend
         status: "reservado",
         createdAt: new Date().toISOString().split("T")[0],
       };
@@ -132,7 +169,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        {/* Tarjeta de resumen de reserva con mejor icono */}
+        {/* Tarjeta de resumen de reserva */}
         <View style={styles.summaryCard}>
           <View style={styles.summaryIconWrap}>
             <Ionicons name="ticket" size={32} color={Colors.primary} />
@@ -169,13 +206,106 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
             <Text style={styles.detailValue}>{user.name || user.dni || "Socio SBE"}</Text>
           </View>
 
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Condición</Text>
+            <View style={[styles.badgePill, isNoSocio ? styles.badgeWarning : styles.badgeSuccess]}>
+              <Text style={[styles.badgeText, isNoSocio ? styles.badgeWarningText : styles.badgeSuccessText]}>
+                {user.category || (isNoSocio ? "No Socio" : "Socio")}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {/* Desglose de Arancel y Pagos */}
+        <View style={styles.detailCard}>
+          <Text style={styles.detailTitle}>Desglose del pago</Text>
+
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Arancel base</Text>
+            <Text style={styles.detailValue}>${price.toLocaleString("es-AR")}</Text>
+          </View>
+
+          {isNoSocio && montoVariacion > 0 && (
+            <View style={styles.detailRow}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Text style={styles.detailLabel}>Recargo No Socio (+{porcentaje}%)</Text>
+              </View>
+              <Text style={[styles.detailValue, { color: Colors.warning }]}>
+                +${montoVariacion.toLocaleString("es-AR")}
+              </Text>
+            </View>
+          )}
+
+          {isSocioInterno && montoVariacion > 0 && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Descuento Socio Interno (-{porcentaje}%)</Text>
+              <Text style={[styles.detailValue, { color: Colors.success }]}>
+                -${montoVariacion.toLocaleString("es-AR")}
+              </Text>
+            </View>
+          )}
+
+          {!isNoSocio && !isSocioInterno && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Tarifa Socio Externo</Text>
+              <Text style={styles.detailValue}>Precio regular</Text>
+            </View>
+          )}
+
           <View style={styles.divider} />
 
           <View style={styles.detailRow}>
-            <Text style={styles.totalLabel}>Arancel base</Text>
+            <Text style={styles.totalLabel}>Total a abonar</Text>
             <Text style={styles.totalValue}>
-              ${price.toLocaleString("es-AR")}
+              ${totalEstimado.toLocaleString("es-AR")}
             </Text>
+          </View>
+        </View>
+
+        {/* Ejemplo de cómo serían los pagos */}
+        <View style={styles.paymentExampleCard}>
+          <View style={styles.paymentExampleHeader}>
+            <Ionicons name="card-outline" size={20} color={Colors.primary} />
+            <Text style={styles.paymentExampleTitle}>Ejemplo de opciones de pago</Text>
+          </View>
+          <Text style={styles.paymentExampleSubtitle}>
+            Al confirmar la reserva, disponés de los siguientes canales para realizar el pago:
+          </Text>
+
+          <View style={styles.paymentOptionItem}>
+            <View style={styles.paymentOptionIconWrap}>
+              <Ionicons name="phone-portrait-outline" size={18} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paymentOptionName}>Mercado Pago (Recomendado)</Text>
+              <Text style={styles.paymentOptionDesc}>
+                Pagá online en 1 pago de ${totalEstimado.toLocaleString("es-AR")} con tarjeta de débito, crédito o dinero en cuenta.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.paymentOptionItem}>
+            <View style={styles.paymentOptionIconWrap}>
+              <Ionicons name="business-outline" size={18} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paymentOptionName}>Transferencia Bancaria</Text>
+              <Text style={styles.paymentOptionDesc}>
+                Transferí al Alias SYSBE.UNSE.PAGOS y el pago quedará acreditado con tu DNI.
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.paymentOptionItem}>
+            <View style={styles.paymentOptionIconWrap}>
+              <Ionicons name="cash-outline" size={18} color={Colors.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.paymentOptionName}>Caja / Administración del Club</Text>
+              <Text style={styles.paymentOptionDesc}>
+                Aboná en efectivo o tarjeta física en recepción antes de comenzar tu turno.
+              </Text>
+            </View>
           </View>
         </View>
 
@@ -183,7 +313,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         <View style={styles.noticeCard}>
           <Ionicons name="shield-checkmark-outline" size={20} color={Colors.info} />
           <Text style={styles.noticeText}>
-            Al confirmar, el turno quedará bloqueado exclusivamente a tu nombre en la base de datos de SYSBE.
+            Al confirmar, el turno quedará bloqueado exclusivamente a tu nombre en la base de datos de SYSBE y se registrará en tu historial de pagos.
           </Text>
         </View>
       </ScrollView>
@@ -338,12 +468,95 @@ const styles = StyleSheet.create({
     borderColor: "#BFDBFE",
     padding: Spacing.md,
     borderRadius: Radius.md,
+    marginBottom: Spacing.base,
   },
   noticeText: {
     flex: 1,
     fontSize: Typography.fontSize.xs,
     color: "#1E40AF",
     lineHeight: 18,
+  },
+
+  // Badges
+  badgePill: {
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+  },
+  badgeText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  badgeWarning: {
+    backgroundColor: Colors.warningLight,
+  },
+  badgeWarningText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.warning,
+  },
+  badgeSuccess: {
+    backgroundColor: Colors.successLight,
+  },
+  badgeSuccessText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.success,
+  },
+
+  // Payment Example Card
+  paymentExampleCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: Radius.lg,
+    padding: Spacing.base,
+    marginBottom: Spacing.base,
+    ...Shadow.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  paymentExampleHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  paymentExampleTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textPrimary,
+  },
+  paymentExampleSubtitle: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.md,
+    lineHeight: 16,
+  },
+  paymentOptionItem: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: Spacing.sm,
+    paddingVertical: Spacing.xs,
+    marginBottom: Spacing.xs,
+  },
+  paymentOptionIconWrap: {
+    width: 32,
+    height: 32,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.primaryTransparent,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+  },
+  paymentOptionName: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textPrimary,
+  },
+  paymentOptionDesc: {
+    fontSize: Typography.fontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: 1,
+    lineHeight: 16,
   },
 
   // Footer

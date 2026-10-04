@@ -5,7 +5,7 @@ import {
   Users,
   UserCheck,
   CalendarDays,
-  Dumbbell,
+  CalendarCheck,
   FileText,
   LogOut,
   X
@@ -51,7 +51,7 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
         { name: 'Usuarios', to: '/usuarios', icon: Users },
         { name: 'Socios', to: '/socios', icon: UserCheck },
         { name: 'Reservas', to: '/reservas', icon: CalendarDays },
-        { name: 'Instalaciones', to: '/instalaciones', icon: Dumbbell }
+        { name: 'Instalaciones', to: '/instalaciones', icon: CalendarCheck }
       ]
     },
     {

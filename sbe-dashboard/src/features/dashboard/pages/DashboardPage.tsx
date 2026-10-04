@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import {
   Users,
   UserCheck,
-  Dumbbell,
+  CalendarCheck,
   CalendarDays,
   ArrowUpRight,
   Mail,
@@ -157,7 +157,7 @@ export function DashboardPage() {
               </div>
             </div>
             <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600 group-hover:scale-105 transition-transform">
-              <Dumbbell className="h-6 w-6" />
+              <CalendarCheck className="h-6 w-6" />
             </div>
           </CardContent>
         </Card>

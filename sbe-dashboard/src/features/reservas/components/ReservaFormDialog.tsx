@@ -327,6 +327,24 @@ export function ReservaFormDialog({
 
     setSaving(true);
     try {
+      // Re-verificar disponibilidad en tiempo real antes de enviar la reserva
+      const instalacionId = mode === 'crear' ? Number(data.idInstalacion) : reserva?.idInstalacion;
+      if (instalacionId) {
+        try {
+          const bloquesActuales = await consultarDisponibilidad(instalacionId, data.fechaReserva);
+          const bloqueElegido = bloquesActuales.find(
+            (b) => b.horaInicio.slice(0, 5) === data.horarioInicio.slice(0, 5)
+          );
+          if (bloqueElegido && !bloqueElegido.disponible) {
+            setFormError('El turno seleccionado ya no se encuentra disponible. Por favor elige otro horario.');
+            setSaving(false);
+            return;
+          }
+        } catch (dispErr) {
+          // Si la verificación falla por red, continuamos hacia la validación del backend
+        }
+      }
+
       if (mode === 'reprogramar' && reserva) {
         await onReprogramar(reserva.idReserva, {
           fechaReserva: data.fechaReserva,
