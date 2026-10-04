@@ -48,7 +48,7 @@ public class DataInitializer implements CommandLineRunner {
                 new BigDecimal("3000"), new BigDecimal("8500"), new BigDecimal("30000"));
         crearCategoria("SOCIO_EXTERNO", "SIN_VINCULO_UNSE", new BigDecimal("0.00"),
                 new BigDecimal("7000"), new BigDecimal("20000"), new BigDecimal("70000"));
-        crearCategoria("NO_SOCIO", "SIN_VINCULO_UNSE", BigDecimal.ZERO,
+        crearCategoria("NO_SOCIO", "SIN_VINCULO_UNSE", new BigDecimal("15.00"),
                 BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
 
         crearAdminInicial();
@@ -98,16 +98,26 @@ public class DataInitializer implements CommandLineRunner {
 
     private void crearCategoria(String tipoSocio, String vinculoUnse, BigDecimal descuento,
                                 BigDecimal mensual, BigDecimal trimestral, BigDecimal anual) {
-        if (!categoriaRepository.existsByTipoSocioAndVinculoUnse(tipoSocio, vinculoUnse)) {
-            Categoria c = new Categoria();
-            c.setTipoSocio(tipoSocio);
-            c.setVinculoUnse(vinculoUnse);
-            c.setDescuento(descuento);
-            c.setCuotaMensual(mensual);
-            c.setCuotaTrimestral(trimestral);
-            c.setCuotaAnual(anual);
-            categoriaRepository.save(c);
-        }
+        categoriaRepository.findByTipoSocioAndVinculoUnse(tipoSocio, vinculoUnse)
+                .ifPresentOrElse(
+                        c -> {
+                            c.setDescuento(descuento);
+                            c.setCuotaMensual(mensual);
+                            c.setCuotaTrimestral(trimestral);
+                            c.setCuotaAnual(anual);
+                            categoriaRepository.save(c);
+                        },
+                        () -> {
+                            Categoria c = new Categoria();
+                            c.setTipoSocio(tipoSocio);
+                            c.setVinculoUnse(vinculoUnse);
+                            c.setDescuento(descuento);
+                            c.setCuotaMensual(mensual);
+                            c.setCuotaTrimestral(trimestral);
+                            c.setCuotaAnual(anual);
+                            categoriaRepository.save(c);
+                        }
+                );
     }
 
     private void crearInstalacion(String nombre, String descripcion, String estado, BigDecimal precioBase, Integer duracionMinutos) {

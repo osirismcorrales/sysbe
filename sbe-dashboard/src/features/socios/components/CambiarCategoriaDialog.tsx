@@ -110,6 +110,9 @@ export function CambiarCategoriaDialog({
 
   if (!socio) return null;
 
+  // Determinar si la categoría seleccionada es de un No Socio
+  const esNoSocio = selectedTipo === 'NO_SOCIO' || selectedCategoria?.tipoSocio === 'NO_SOCIO';
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
@@ -165,7 +168,7 @@ export function CambiarCategoriaDialog({
 
           <FieldError message={errors.categoriaId?.message} />
 
-          {/* Condiciones resultantes: Cuota y Descuento */}
+          {/* Condiciones resultantes: Cuota y Descuento/Recargo */}
           {selectedCategoria && (
             <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 space-y-2.5">
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
@@ -180,12 +183,25 @@ export function CambiarCategoriaDialog({
                       : 'Sin costo ($0)'}
                   </span>
                 </div>
+
+                {/* Tarjeta dinámica: Muestra Recargo si es NO_SOCIO o Descuento para los demás */}
                 <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs">
-                  <span className="text-gray-400 block text-[11px] font-medium">Descuento</span>
-                  <span className={`font-bold text-sm ${selectedCategoria.descuento > 0 ? 'text-green-600' : 'text-gray-700'}`}>
+                  <span className="text-gray-400 block text-[11px] font-medium">
+                    {esNoSocio ? 'Recargo en reserva' : 'Descuento en reserva'}
+                  </span>
+                  <span
+                    className={`font-bold text-sm ${
+                      esNoSocio
+                        ? 'text-amber-600'
+                        : selectedCategoria.descuento > 0
+                        ? 'text-green-600'
+                        : 'text-gray-700'
+                    }`}
+                  >
                     {selectedCategoria.descuento}%
                   </span>
                 </div>
+
                 {selectedCategoria.cuotaTrimestral > 0 && (
                   <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
                     <span className="text-gray-400 block text-[10px] font-medium">Cuota trimestral</span>

@@ -6,10 +6,7 @@ import {
   UserCheck,
   CalendarDays,
   Dumbbell,
-  Wallet,
   FileText,
-  ClipboardList,
-  Gift,
   LogOut,
   X
 } from 'lucide-react';
@@ -57,16 +54,7 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
     {
       title: 'ANÁLISIS Y CONTROL',
       items: [
-        { name: 'Finanzas', to: '/finanzas', icon: Wallet },
         { name: 'Reportes', to: '/reportes', icon: FileText }
-      ]
-    },
-    {
-      title: 'SISTEMA',
-      items: [
-        { name: 'Encuestas', to: '/encuestas', icon: ClipboardList },
-        { name: 'Empleados', to: '/empleados', icon: UserCheck },
-        { name: 'Puntos / Promos', to: '/puntos', icon: Gift }
       ]
     }
   ];
