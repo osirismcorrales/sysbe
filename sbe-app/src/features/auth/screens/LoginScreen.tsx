@@ -83,7 +83,7 @@ export default function LoginScreen({ navigation }: Props) {
 
   return (
     <View style={styles.outerContainer}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
+      <StatusBar barStyle="light-content" />
 
       {/* Modal de configuración de servidor */}
       <ServerConfigModal

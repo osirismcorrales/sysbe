@@ -62,7 +62,7 @@ export default function HomeScreen({ navigation }: Props) {
       id: "reserva",
       label: "Nueva reserva",
       icon: "ticket-outline" as keyof typeof Ionicons.glyphMap,
-      onPress: () => navigation.navigate("Reservas"),
+      onPress: () => navigation.navigate("Reservas", { screen: "BookService" } as any),
     },
     {
       id: "mis-reservas",
@@ -86,7 +86,7 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} translucent />
+      <StatusBar barStyle="light-content" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={

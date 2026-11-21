@@ -1,6 +1,7 @@
 package com.sbe.backend.usuario.dto;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 public record SocioResponseDto(
         Long idUsuario,
@@ -12,6 +13,8 @@ public record SocioResponseDto(
         Integer idCategoria,
         String tipoSocio,
         String vinculoUnse,
-        BigDecimal descuentoPorcentaje
+        BigDecimal descuentoPorcentaje,  // null si tiene recargo
+        BigDecimal recargoPorcentaje,    // null si tiene descuento
+        LocalDate fechaAltaSocio         // fecha de auditoría
 ) {
 }

@@ -17,6 +17,8 @@ import {
 } from '../services/reservasApi';
 import { getUsuarios, type UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
 import { getInstalaciones, type InstalacionResponseDto } from '../../instalaciones/services/instalacionesApi';
+import { getPagosPaginados } from '../../pagos/services/pagosApi';
+import type { PagoResponseDto } from '../../pagos/types/pagos.types';
 
 export type { ReservaResponseDto, ReservaRequestDto, ReprogramarReservaRequestDto } from '../services/reservasApi';
 export type { UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
@@ -28,6 +30,9 @@ export interface UseReservasResult {
   instalaciones: InstalacionResponseDto[];
   usuarioMap: Map<number, UsuarioResponseDto>;
   instalacionMap: Map<number, InstalacionResponseDto>;
+  /** Último pago (o el más relevante) asociado a cada reserva. */
+  pagoPorReserva: Map<number, PagoResponseDto>;
+  pagosLoading: boolean;
   loading: boolean;
   error: string | null;
   refresh: () => void;
@@ -46,6 +51,8 @@ export function useReservas(): UseReservasResult {
   const [reservas, setReservas] = useState<ReservaResponseDto[]>([]);
   const [usuarios, setUsuarios] = useState<UsuarioResponseDto[]>([]);
   const [instalaciones, setInstalaciones] = useState<InstalacionResponseDto[]>([]);
+  const [pagosReserva, setPagosReserva] = useState<PagoResponseDto[]>([]);
+  const [pagosLoading, setPagosLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +108,29 @@ export function useReservas(): UseReservasResult {
     };
   }, [page, size, tick]);
 
+  // Cargar los pagos de tipo RESERVA para saber qué reservas están pagadas.
+  // No hay endpoint "pagos por reserva", así que se traen todos los pagos de
+  // reservas (el volumen es bajo) y se indexan por idReserva.
+  useEffect(() => {
+    let cancelled = false;
+    setPagosLoading(true);
+
+    getPagosPaginados({ tipoPago: 'RESERVA', size: 500, sort: 'fechaCreacion,desc' })
+      .then((pageData) => {
+        if (!cancelled) setPagosReserva(pageData.content);
+      })
+      .catch(() => {
+        if (!cancelled) setPagosReserva([]);
+      })
+      .finally(() => {
+        if (!cancelled) setPagosLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tick]);
+
   // Mapas de lookup para resolver IDs → nombres
   const usuarioMap = useMemo(() => {
     const map = new Map<number, UsuarioResponseDto>();
@@ -113,6 +143,41 @@ export function useReservas(): UseReservasResult {
     instalaciones.forEach((i) => map.set(i.id, i));
     return map;
   }, [instalaciones]);
+
+  // Un pago por reserva: se prioriza el estado más relevante (aprobado >
+  // pendiente > rechazado > anulado). Dentro del mismo estado, el más reciente.
+  const pagoPorReserva = useMemo(() => {
+    const prioridad: Record<string, number> = {
+      APROBADO: 0,
+      PENDIENTE: 1,
+      RECHAZADO: 2,
+      ANULADO: 3,
+    };
+
+    const map = new Map<number, PagoResponseDto>();
+    pagosReserva.forEach((pago) => {
+      if (pago.idReserva == null) return;
+
+      const actual = map.get(pago.idReserva);
+      if (!actual) {
+        map.set(pago.idReserva, pago);
+        return;
+      }
+
+      const prioridadNueva = prioridad[pago.estadoPago] ?? 9;
+      const prioridadActual = prioridad[actual.estadoPago] ?? 9;
+
+      if (
+        prioridadNueva < prioridadActual ||
+        (prioridadNueva === prioridadActual &&
+          (pago.fechaCreacion || '') > (actual.fechaCreacion || ''))
+      ) {
+        map.set(pago.idReserva, pago);
+      }
+    });
+
+    return map;
+  }, [pagosReserva]);
 
   const crear = useCallback(
     async (body: ReservaRequestDto) => {
@@ -147,6 +212,8 @@ export function useReservas(): UseReservasResult {
     instalaciones,
     usuarioMap,
     instalacionMap,
+    pagoPorReserva,
+    pagosLoading,
     loading,
     error,
     refresh,

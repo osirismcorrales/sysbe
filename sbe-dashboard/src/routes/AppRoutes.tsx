@@ -7,6 +7,7 @@ import UsuariosPage from '../features/usuarios/pages/UsuariosPage';
 import SociosPage from '../features/socios/pages/SociosPage';
 import ReservasPage from '../features/reservas/pages/ReservasPage';
 import InstalacionesPage from '../features/instalaciones/pages/InstalacionesPage';
+import PagosPage from '../features/pagos/pages/PagosPage';
 import FinanzasPage from '../features/finanzas/pages/FinanzasPage';
 import EncuestasPage from '../features/encuestas/pages/EncuestasPage';
 import EmpleadosPage from '../features/empleados/pages/EmpleadosPage';
@@ -30,6 +31,7 @@ export function AppRoutes() {
               <Route path="/reservas" element={<ReservasPage />} />
               <Route path="/instalaciones" element={<InstalacionesPage />} />
               <Route path="/servicios" element={<Navigate to="/instalaciones" replace />} />
+              <Route path="/pagos" element={<PagosPage />} />
               <Route path="/finanzas" element={<FinanzasPage />} />
               <Route path="/reportes" element={<ReportesPage />} />
               <Route path="/encuestas" element={<EncuestasPage />} />
@@ -37,7 +39,6 @@ export function AppRoutes() {
               <Route path="/puntos" element={<PuntosPage />} /> 
 
               {/* Redirects from old routes */}
-              <Route path="/pagos" element={<Navigate to="/finanzas" replace />} />
               <Route path="/mantenimiento" element={<Navigate to="/finanzas" replace />} />
             </Route>
           </Route>

@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.NoSuchElementException;
 
@@ -45,7 +46,13 @@ public class SocioService {
         // 4. Modificar la categoría del usuario
         usuario.setCategoria(nuevaCategoria);
 
-        // 5. Devolver el DTO de respuesta con los datos actualizados
+        // 5. Registrar fecha de alta como socio si pasa a ser socio
+        if (!"NO_SOCIO".equalsIgnoreCase(nuevaCategoria.getTipoSocio())
+                && usuario.getFechaAltaSocio() == null) {
+            usuario.setFechaAltaSocio(LocalDate.now());
+        }
+
+        // 6. Devolver el DTO de respuesta con los datos actualizados
         return mapToSocioResponse(usuario);
     }
 
@@ -146,7 +153,9 @@ public class SocioService {
                 u.getCategoria().getIdCategoria(),
                 u.getCategoria().getTipoSocio(),
                 u.getCategoria().getVinculoUnse(),
-                u.getCategoria().getDescuento()
+                u.getCategoria().getDescuento(),
+                u.getCategoria().getRecargo(),
+                u.getFechaAltaSocio()
         );
     }
 }

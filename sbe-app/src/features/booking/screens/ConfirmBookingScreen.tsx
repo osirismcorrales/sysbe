@@ -17,15 +17,61 @@ import { Colors, Spacing, Radius, Typography, Shadow } from "../../../theme";
 import { useApp } from "../../../data/AppContext";
 import { reservationsService } from "../../../api/services/reservationsService";
 import { disponibilidadService } from "../../../api/services/disponibilidadService";
-import type { Reservation } from "../../../data/types";
+import { paymentsService } from "../../../api/services/paymentsService";
+import { queryClient } from "../../../api/queryClient";
+import { queryKeys } from "../../../api/queryKeys";
+import type { Reservation, MetodoPago } from "../../../data/types";
 import { formatHora } from "../utils/bookingValidation";
 
 type Props = NativeStackScreenProps<BookingStackParamList, "ConfirmBooking">;
+
+interface MetodoPagoItem {
+  id: MetodoPago;
+  nombre: string;
+  descripcion: string;
+  icono: keyof typeof Ionicons.glyphMap;
+  badge?: string;
+}
+
+const METODOS_PAGO: MetodoPagoItem[] = [
+  {
+    id: "MERCADO_PAGO",
+    nombre: "Mercado Pago",
+    descripcion: "Dinero en cuenta, tarjetas o saldo digital",
+    icono: "phone-portrait-outline",
+    badge: "Recomendado",
+  },
+  {
+    id: "TARJETA",
+    nombre: "Tarjeta de Crédito",
+    descripcion: "Acreditación online con tarjeta de crédito",
+    icono: "card-outline",
+  },
+  {
+    id: "DEBITO",
+    nombre: "Tarjeta de Débito",
+    descripcion: "Débito bancario inmediato",
+    icono: "card-outline",
+  },
+  {
+    id: "TRANSFERENCIA",
+    nombre: "Transferencia Bancaria",
+    descripcion: "Transferí al alias del club con tu DNI",
+    icono: "swap-horizontal-outline",
+  },
+  {
+    id: "EFECTIVO",
+    nombre: "Efectivo en Caja",
+    descripcion: "Aboná en administración del club antes de tu turno",
+    icono: "cash-outline",
+  },
+];
 
 export default function ConfirmBookingScreen({ navigation, route }: Props) {
   const { serviceId, serviceName, date, time, horaInicio, horaFin, price } = route.params;
   const { user, addReservation } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedMetodo, setSelectedMetodo] = useState<MetodoPago>("MERCADO_PAGO");
 
   const formattedDate = (() => {
     const d = new Date(date + "T12:00:00");
@@ -36,20 +82,27 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
     });
   })();
 
-  // Determinar condición de socio y cálculo exacto según reglas de negocio
-  const tipoSocio = (user.categoriaObj?.tipoSocio || "").toUpperCase();
-  const isNoSocio = tipoSocio === "NO_SOCIO" || user.category === "No Socio" || !tipoSocio;
-  const isSocioInterno = tipoSocio === "SOCIO_INTERNO" || user.category.includes("Interno");
-  const porcentaje = user.categoriaObj?.descuento ?? (isNoSocio ? 15 : isSocioInterno ? 20 : 0);
+  // Determinar recargo o descuento real según categoría obtenida del backend
+  const cat = user.categoriaObj;
+  const recargoPct = cat?.recargo != null && cat.recargo > 0 ? cat.recargo : 0;
+  const descuentoPct = cat?.descuento != null && cat.descuento > 0 ? cat.descuento : 0;
 
-  const montoVariacion = Math.round((price * porcentaje) / 100);
+  let montoVariacion = 0;
+  let tipoVariacion: "recargo" | "descuento" | "ninguno" = "ninguno";
   let totalEstimado = price;
-  if (isNoSocio) {
-    totalEstimado = price + montoVariacion; // Recargo para No Socio
-  } else if (isSocioInterno) {
-    totalEstimado = Math.max(0, price - montoVariacion); // Descuento para Socio Interno
+
+  if (recargoPct > 0) {
+    tipoVariacion = "recargo";
+    montoVariacion = Math.round((price * recargoPct) / 100);
+    totalEstimado = price + montoVariacion;
+  } else if (descuentoPct > 0) {
+    tipoVariacion = "descuento";
+    montoVariacion = Math.round((price * descuentoPct) / 100);
+    totalEstimado = Math.max(0, price - montoVariacion);
   } else {
-    totalEstimado = price; // Tarifa regular para Socio Externo
+    tipoVariacion = "ninguno";
+    montoVariacion = 0;
+    totalEstimado = price;
   }
 
   const handleConfirmReservation = async () => {
@@ -91,7 +144,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         }
       }
 
-      // 2. Llamar al endpoint del backend: POST /api/reservas
+      // 2. Llamar al endpoint del backend para crear la reserva: POST /api/reservas
       const responseDto = await reservationsService.crearReserva({
         fechaReserva: date,
         horarioInicio: finalHoraInicio,
@@ -100,26 +153,70 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         idInstalacion: Number(serviceId),
       });
 
-      // 3. Actualizar estado en el contexto local (sin añadir puntos desde el frontend)
+      const montoAPagar = responseDto.montoReserva != null
+        ? Number(responseDto.montoReserva)
+        : totalEstimado;
+
+      // 3. Crear el pago en el backend: POST /api/pagos
+      let pagoExitoso = false;
+      try {
+        await paymentsService.crearPago({
+          idUsuario: Number(user.id) || 1,
+          idReserva: responseDto.idReserva,
+          tipoPago: "RESERVA",
+          montoPago: montoAPagar,
+          metodoPago: selectedMetodo,
+          estadoPago: selectedMetodo === "EFECTIVO" ? "PENDIENTE" : "APROBADO",
+        });
+        pagoExitoso = true;
+      } catch (pagoErr: any) {
+        if (__DEV__) {
+          console.warn("[ConfirmBookingScreen] Error al registrar pago:", pagoErr);
+        }
+      }
+
+      // 4. Invalidar consultas en caché para refrescar reservas y pagos en las demás pantallas
+      queryClient.invalidateQueries({ queryKey: queryKeys.reservations.all });
+      queryClient.invalidateQueries({ queryKey: queryKeys.payments.all });
+
+      // 5. Actualizar estado en el contexto local
       const newReservation: Reservation = {
         id: String(responseDto.idReserva),
         serviceId: String(responseDto.idInstalacion),
         serviceName,
         date: responseDto.fechaReserva,
         time: `${formatHora(responseDto.horarioInicio)} - ${formatHora(responseDto.horarioFin)}`,
-        price: responseDto.montoReserva ?? totalEstimado,
-        discount: isSocioInterno ? montoVariacion : 0,
+        price: montoAPagar,
+        discount: tipoVariacion === "descuento" ? montoVariacion : 0,
         pointsUsed: 0,
-        pointsEarned: 0, // Regla: Los puntos son gestionados exclusivamente por el backend
+        pointsEarned: 0,
         status: "reservado",
         createdAt: new Date().toISOString().split("T")[0],
       };
 
       addReservation(newReservation);
 
+      // 6. Notificar confirmación al usuario
+      const metodoObj = METODOS_PAGO.find((m) => m.id === selectedMetodo);
+      const metodoNombre = metodoObj ? metodoObj.nombre : selectedMetodo;
+      const estadoTexto =
+        selectedMetodo === "EFECTIVO"
+          ? "Estado del pago: Pendiente (a abonar en recepción)"
+          : "Estado del pago: Aprobado";
+
+      const alertMessage = pagoExitoso
+        ? `${serviceName}\n${formattedDate} · ${time} hs\n\n` +
+          `Monto: $${montoAPagar.toLocaleString("es-AR")}\n` +
+          `Medio de pago: ${metodoNombre}\n` +
+          `${estadoTexto}\n\n` +
+          `Tu turno y comprobante de pago quedaron registrados en el sistema.`
+        : `${serviceName}\n${formattedDate} · ${time} hs\n\n` +
+          `Tu reserva quedó registrada (#${responseDto.idReserva}).\n` +
+          `No se pudo registrar el pago automáticamente. Podrás abonarlo desde la sección Mis Pagos o en recepción.`;
+
       Alert.alert(
-        "¡Reserva confirmada!",
-        `${serviceName}\n${formattedDate} · ${time} hs\n\nTu turno quedó registrado correctamente en el sistema.`,
+        pagoExitoso ? "¡Reserva y Pago confirmados!" : "¡Reserva confirmada!",
+        alertMessage,
         [
           {
             text: "Ver mis reservas",
@@ -128,11 +225,10 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
             },
           },
           {
-            text: "Ir al inicio",
+            text: "Ver mis pagos",
             onPress: () => {
-              navigation.popToTop();
+              (navigation as any).getParent()?.navigate("Pagos");
             },
-            style: "cancel",
           },
         ]
       );
@@ -150,7 +246,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View style={styles.header}>
@@ -208,9 +304,9 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Condición</Text>
-            <View style={[styles.badgePill, isNoSocio ? styles.badgeWarning : styles.badgeSuccess]}>
-              <Text style={[styles.badgeText, isNoSocio ? styles.badgeWarningText : styles.badgeSuccessText]}>
-                {user.category || (isNoSocio ? "No Socio" : "Socio")}
+            <View style={[styles.badgePill, recargoPct > 0 ? styles.badgeWarning : styles.badgeSuccess]}>
+              <Text style={[styles.badgeText, recargoPct > 0 ? styles.badgeWarningText : styles.badgeSuccessText]}>
+                {user.category || (recargoPct > 0 ? "No Socio" : "Socio")}
               </Text>
             </View>
           </View>
@@ -225,10 +321,11 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
             <Text style={styles.detailValue}>${price.toLocaleString("es-AR")}</Text>
           </View>
 
-          {isNoSocio && montoVariacion > 0 && (
+          {tipoVariacion === "recargo" && (
             <View style={styles.detailRow}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-                <Text style={styles.detailLabel}>Recargo No Socio (+{porcentaje}%)</Text>
+                <Ionicons name="arrow-up-circle-outline" size={16} color={Colors.warning} />
+                <Text style={styles.detailLabel}>Recargo ({recargoPct}%)</Text>
               </View>
               <Text style={[styles.detailValue, { color: Colors.warning }]}>
                 +${montoVariacion.toLocaleString("es-AR")}
@@ -236,19 +333,24 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
             </View>
           )}
 
-          {isSocioInterno && montoVariacion > 0 && (
+          {tipoVariacion === "descuento" && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Descuento Socio Interno (-{porcentaje}%)</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Ionicons name="arrow-down-circle-outline" size={16} color={Colors.success} />
+                <Text style={styles.detailLabel}>Descuento aplicado (-{descuentoPct}%)</Text>
+              </View>
               <Text style={[styles.detailValue, { color: Colors.success }]}>
                 -${montoVariacion.toLocaleString("es-AR")}
               </Text>
             </View>
           )}
 
-          {!isNoSocio && !isSocioInterno && (
+          {tipoVariacion === "ninguno" && (
             <View style={styles.detailRow}>
-              <Text style={styles.detailLabel}>Tarifa Socio Externo</Text>
-              <Text style={styles.detailValue}>Precio regular</Text>
+              <Text style={styles.detailLabel}>Descuento / Recargo</Text>
+              <Text style={[styles.detailValue, { color: Colors.textSecondary }]}>
+                Sin descuento
+              </Text>
             </View>
           )}
 
@@ -262,50 +364,67 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
           </View>
         </View>
 
-        {/* Ejemplo de cómo serían los pagos */}
-        <View style={styles.paymentExampleCard}>
-          <View style={styles.paymentExampleHeader}>
-            <Ionicons name="card-outline" size={20} color={Colors.primary} />
-            <Text style={styles.paymentExampleTitle}>Ejemplo de opciones de pago</Text>
-          </View>
-          <Text style={styles.paymentExampleSubtitle}>
-            Al confirmar la reserva, disponés de los siguientes canales para realizar el pago:
+        {/* Selección interactiva de Medios de Pago */}
+        <View style={styles.detailCard}>
+          <Text style={styles.detailTitle}>Selecciona el medio de pago</Text>
+          <Text style={styles.paymentMethodSubtitle}>
+            Elige el medio con el que abonarás tu reserva:
           </Text>
 
-          <View style={styles.paymentOptionItem}>
-            <View style={styles.paymentOptionIconWrap}>
-              <Ionicons name="phone-portrait-outline" size={18} color={Colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.paymentOptionName}>Mercado Pago (Recomendado)</Text>
-              <Text style={styles.paymentOptionDesc}>
-                Pagá online en 1 pago de ${totalEstimado.toLocaleString("es-AR")} con tarjeta de débito, crédito o dinero en cuenta.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.paymentOptionItem}>
-            <View style={styles.paymentOptionIconWrap}>
-              <Ionicons name="business-outline" size={18} color={Colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.paymentOptionName}>Transferencia Bancaria</Text>
-              <Text style={styles.paymentOptionDesc}>
-                Transferí al Alias SYSBE.UNSE.PAGOS y el pago quedará acreditado con tu DNI.
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.paymentOptionItem}>
-            <View style={styles.paymentOptionIconWrap}>
-              <Ionicons name="cash-outline" size={18} color={Colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.paymentOptionName}>Caja / Administración del Club</Text>
-              <Text style={styles.paymentOptionDesc}>
-                Aboná en efectivo o tarjeta física en recepción antes de comenzar tu turno.
-              </Text>
-            </View>
+          <View style={styles.metodosContainer}>
+            {METODOS_PAGO.map((metodo) => {
+              const isSelected = selectedMetodo === metodo.id;
+              return (
+                <TouchableOpacity
+                  key={metodo.id}
+                  style={[
+                    styles.metodoItem,
+                    isSelected && styles.metodoItemSelected,
+                  ]}
+                  onPress={() => setSelectedMetodo(metodo.id)}
+                  activeOpacity={0.8}
+                >
+                  <View
+                    style={[
+                      styles.metodoIconWrap,
+                      isSelected && styles.metodoIconWrapSelected,
+                    ]}
+                  >
+                    <Ionicons
+                      name={metodo.icono}
+                      size={20}
+                      color={isSelected ? Colors.primary : Colors.textSecondary}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: "row", alignItems: "center", gap: Spacing.xs }}>
+                      <Text
+                        style={[
+                          styles.metodoNombre,
+                          isSelected && styles.metodoNombreSelected,
+                        ]}
+                      >
+                        {metodo.nombre}
+                      </Text>
+                      {metodo.badge && (
+                        <View style={styles.badgePromo}>
+                          <Text style={styles.badgePromoText}>{metodo.badge}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <Text style={styles.metodoDesc}>{metodo.descripcion}</Text>
+                  </View>
+                  <View
+                    style={[
+                      styles.radioCircle,
+                      isSelected && styles.radioCircleSelected,
+                    ]}
+                  >
+                    {isSelected && <View style={styles.radioInner} />}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
 
@@ -313,12 +432,12 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         <View style={styles.noticeCard}>
           <Ionicons name="shield-checkmark-outline" size={20} color={Colors.info} />
           <Text style={styles.noticeText}>
-            Al confirmar, el turno quedará bloqueado exclusivamente a tu nombre en la base de datos de SYSBE y se registrará en tu historial de pagos.
+            Al confirmar, el turno quedará reservado a tu nombre en SYSBE y el pago se registrará automáticamente en tu historial.
           </Text>
         </View>
       </ScrollView>
 
-      {/* Botón de Confirmación Directa */}
+      {/* Botón de Confirmación y Pago */}
       <View style={styles.footer}>
         <TouchableOpacity
           style={[styles.confirmBtn, isSubmitting && styles.confirmBtnDisabled]}
@@ -331,12 +450,16 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
           ) : (
             <>
               <Ionicons
-                name="checkmark-circle-outline"
+                name={selectedMetodo === "EFECTIVO" ? "checkmark-circle-outline" : "card-outline"}
                 size={22}
                 color={Colors.textOnPrimary}
                 style={{ marginRight: Spacing.xs }}
               />
-              <Text style={styles.confirmBtnText}>Confirmar reserva</Text>
+              <Text style={styles.confirmBtnText}>
+                {selectedMetodo === "EFECTIVO"
+                  ? `Reservar y pagar en caja ($${totalEstimado.toLocaleString("es-AR")})`
+                  : `Confirmar y pagar $${totalEstimado.toLocaleString("es-AR")}`}
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -362,7 +485,7 @@ const styles = StyleSheet.create({
     color: Colors.textPrimary,
   },
 
-  content: { padding: Spacing.base, paddingBottom: 100 },
+  content: { padding: Spacing.base, paddingBottom: 110 },
 
   // Summary
   summaryCard: {
@@ -504,59 +627,85 @@ const styles = StyleSheet.create({
     color: Colors.success,
   },
 
-  // Payment Example Card
-  paymentExampleCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: Radius.lg,
-    padding: Spacing.base,
-    marginBottom: Spacing.base,
-    ...Shadow.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  paymentExampleHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: Spacing.xs,
-    marginBottom: Spacing.xs,
-  },
-  paymentExampleTitle: {
-    fontSize: Typography.fontSize.sm,
-    fontWeight: Typography.fontWeight.bold,
-    color: Colors.textPrimary,
-  },
-  paymentExampleSubtitle: {
+  // Selección de medios de pago
+  paymentMethodSubtitle: {
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
     marginBottom: Spacing.md,
-    lineHeight: 16,
   },
-  paymentOptionItem: {
-    flexDirection: "row",
-    alignItems: "flex-start",
+  metodosContainer: {
     gap: Spacing.sm,
-    paddingVertical: Spacing.xs,
-    marginBottom: Spacing.xs,
   },
-  paymentOptionIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.full,
+  metodoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.background,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  metodoItemSelected: {
+    borderColor: Colors.primary,
     backgroundColor: Colors.primaryTransparent,
+  },
+  metodoIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: Radius.full,
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 2,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
-  paymentOptionName: {
-    fontSize: Typography.fontSize.xs,
-    fontWeight: Typography.fontWeight.bold,
+  metodoIconWrapSelected: {
+    backgroundColor: Colors.primaryTransparent,
+    borderColor: Colors.primary,
+  },
+  metodoNombre: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.semibold,
     color: Colors.textPrimary,
   },
-  paymentOptionDesc: {
+  metodoNombreSelected: {
+    color: Colors.primary,
+    fontWeight: Typography.fontWeight.bold,
+  },
+  metodoDesc: {
     fontSize: Typography.fontSize.xs,
     color: Colors.textSecondary,
-    marginTop: 1,
-    lineHeight: 16,
+    marginTop: 2,
+  },
+  badgePromo: {
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: Radius.full,
+  },
+  badgePromoText: {
+    fontSize: 9,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textOnAccent,
+  },
+  radioCircle: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  radioCircleSelected: {
+    borderColor: Colors.primary,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
   },
 
   // Footer

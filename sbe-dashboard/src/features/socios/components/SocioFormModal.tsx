@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '../../../components/ui/Button';
 import { FechaInput } from '../../../components/ui/FechaInput';
 import { useData, type Socio } from '../../../context/DataContext';
-import { getCategorias, type CategoriaResponseDto } from '../services/sociosApi';
+import { getCategorias, formatCategoriaNombre, type CategoriaResponseDto } from '../services/sociosApi';
 
 import { socioSchema, type SocioFormValues } from '../schemas/socioSchemas';
 
@@ -170,7 +170,7 @@ export function SocioFormModal({ open, onOpenChange }: SocioFormModalProps) {
                 {categorias.length > 0 ? (
                   categorias.map((c) => (
                     <option key={c.idCategoria} value={c.tipoSocio}>
-                      {c.etiqueta || (c.vinculoUnse ? `${c.tipoSocio} · ${c.vinculoUnse}` : c.tipoSocio)}
+                      {formatCategoriaNombre(c)}
                     </option>
                   ))
                 ) : (

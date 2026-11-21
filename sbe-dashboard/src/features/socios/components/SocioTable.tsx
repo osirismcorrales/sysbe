@@ -9,6 +9,7 @@ import { Button } from '../../../components/ui/Button';
 import { Edit2, UserX, Award, Mail, Calendar } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import type { SocioResponseDto } from '../services/sociosApi';
+import { formatVinculo } from '../services/sociosApi';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -112,7 +113,7 @@ export function SocioTable({ socios, onEdit, onDarDeBaja, onAjustePuntos }: Soci
               <div>
                 <span className="text-[10px] text-gray-400 font-medium block">Vínculo UNSE</span>
                 <span className="text-[11px] font-semibold text-gray-600 mt-0.5 block truncate">
-                  {socio.vinculoUnse || 'Sin vínculo'}
+                  {formatVinculo(socio.vinculoUnse)}
                 </span>
               </div>
             </div>
@@ -191,9 +192,9 @@ export function SocioTable({ socios, onEdit, onDarDeBaja, onAjustePuntos }: Soci
                   {socio.vinculoUnse && (
                     <span
                       className="text-[10px] font-semibold text-gray-400 block mt-0.5 truncate max-w-[130px]"
-                      title={socio.vinculoUnse}
+                      title={formatVinculo(socio.vinculoUnse)}
                     >
-                      {socio.vinculoUnse}
+                      {formatVinculo(socio.vinculoUnse)}
                     </span>
                   )}
                 </td>

@@ -7,7 +7,8 @@ public record CategoriaResponseDto(
         String tipoSocio,
         String vinculoUnse,      // puede ser null
         String etiqueta,         // texto listo para mostrar en el selector
-        BigDecimal descuento,
+        BigDecimal descuento,    // null si tiene recargo
+        BigDecimal recargo,      // null si tiene descuento
         BigDecimal cuotaMensual,
         BigDecimal cuotaTrimestral,
         BigDecimal cuotaAnual

@@ -153,25 +153,41 @@ export default function MyReservationsScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle="dark-content" />
 
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity
-          onPress={() => navigation.goBack()}
+          onPress={() => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+            } else {
+              navigation.navigate("BookService");
+            }
+          }}
           style={styles.backBtn}
           activeOpacity={0.7}
         >
           <Ionicons name="arrow-back" size={22} color={Colors.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Reservas</Text>
-        <TouchableOpacity
-          onPress={() => refreshAll()}
-          style={styles.refreshBtn}
-          activeOpacity={0.7}
-        >
-          <Ionicons name="refresh-outline" size={20} color={Colors.primary} />
-        </TouchableOpacity>
+        <View style={styles.headerRightActions}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("BookService")}
+            style={styles.newBookingHeaderBtn}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="add" size={16} color={Colors.textOnPrimary} />
+            <Text style={styles.newBookingHeaderBtnText}>Nueva reserva</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => refreshAll()}
+            style={styles.refreshBtn}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="refresh-outline" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filtros */}
@@ -211,6 +227,14 @@ export default function MyReservationsScreen({ navigation }: Props) {
                 ? "Tus próximos turnos confirmados aparecerán aquí."
                 : "Aquí verás el historial de reservas completadas y canceladas."}
             </Text>
+            <TouchableOpacity
+              style={styles.newBookingEmptyBtn}
+              onPress={() => navigation.navigate("BookService")}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={Colors.textOnPrimary} />
+              <Text style={styles.newBookingEmptyBtnText}>Hacer una nueva reserva</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           filtered.map((r) => {
@@ -517,6 +541,42 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.md,
+  },
+  headerRightActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+  },
+  newBookingHeaderBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: Radius.full,
+    ...Shadow.sm,
+  },
+  newBookingHeaderBtnText: {
+    fontSize: Typography.fontSize.xs,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textOnPrimary,
+  },
+  newBookingEmptyBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: Spacing.xs,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: Radius.md,
+    marginTop: Spacing.lg,
+    ...Shadow.sm,
+  },
+  newBookingEmptyBtnText: {
+    fontSize: Typography.fontSize.sm,
+    fontWeight: Typography.fontWeight.bold,
+    color: Colors.textOnPrimary,
   },
   backBtn: { padding: Spacing.xs },
   refreshBtn: { padding: Spacing.xs },

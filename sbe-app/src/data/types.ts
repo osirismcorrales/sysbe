@@ -39,7 +39,10 @@ export interface CategoriaResponseDto {
   tipoSocio?: string;
   vinculoUnse?: string | null;
   etiqueta?: string;
-  descuento?: number;
+  /** Porcentaje de descuento (aplica a socios). Mutuamente excluyente con recargo. */
+  descuento?: number | null;
+  /** Porcentaje de recargo (aplica a no socios). Mutuamente excluyente con descuento. */
+  recargo?: number | null;
   cuotaMensual?: number;
   cuotaTrimestral?: number;
   cuotaAnual?: number;
@@ -83,8 +86,43 @@ export interface LoginResponseDto {
 }
 
 /**
+ * Formatea el vínculo UNSE ("ALUMNO", "DOCENTE", "NODOCENTE", "SIN_VINCULO_UNSE")
+ * a un texto legible y profesional para el usuario.
+ */
+export function formatVinculoLabel(vinculo?: string | null): string {
+  if (!vinculo) return "Sin vínculo UNSE";
+  const raw = vinculo.trim().toUpperCase();
+  if (
+    raw === "SIN_VINCULO_UNSE" ||
+    raw === "SIN_VINCULO" ||
+    raw === "NINGUNO" ||
+    raw === "SIN VINCULO"
+  ) {
+    return "Sin vínculo UNSE";
+  }
+  if (raw === "ALUMNO") return "Alumno";
+  if (raw === "DOCENTE") return "Docente";
+  if (raw === "NODOCENTE" || raw === "NO_DOCENTE" || raw === "NO DOCENTE") {
+    return "No Docente";
+  }
+  return vinculo.charAt(0).toUpperCase() + vinculo.slice(1).toLowerCase();
+}
+
+/**
+ * Formatea el tipo de socio ("SOCIO_INTERNO", "SOCIO_EXTERNO", "NO_SOCIO")
+ */
+export function formatTipoSocioLabel(tipoSocio?: string | null): string {
+  if (!tipoSocio) return "No Socio";
+  const raw = tipoSocio.trim().toUpperCase();
+  if (raw === "SOCIO_INTERNO" || raw === "INTERNO") return "Socio Interno";
+  if (raw === "SOCIO_EXTERNO" || raw === "EXTERNO") return "Socio Externo";
+  if (raw === "NO_SOCIO" || raw === "NO SOCIO" || raw === "") return "No Socio";
+  return tipoSocio;
+}
+
+/**
  * Formatea la categoría del usuario para mostrarla de manera amigable y clara.
- * Evita redundancias como "Socio No Socio".
+ * Evita textos crudos como "SIN_VINCULO_UNSE" o redundancias como "Socio No Socio".
  */
 export function formatCategoriaLabel(
   categoria?: CategoriaResponseDto | string | null
@@ -93,39 +131,36 @@ export function formatCategoriaLabel(
 
   // Si vino directamente como string
   if (typeof categoria === "string") {
-    const raw = categoria.trim().toUpperCase();
-    if (raw === "NO_SOCIO" || raw === "NO SOCIO" || raw === "") return "No Socio";
-    if (raw === "SOCIO_INTERNO" || raw === "INTERNO") return "Socio Interno";
-    if (raw === "SOCIO_EXTERNO" || raw === "EXTERNO") return "Socio Externo";
-    return categoria;
+    return formatTipoSocioLabel(categoria);
   }
 
-  // Si viene como objeto CategoriaResponseDto con 'etiqueta' provista por el backend
-  if (categoria.etiqueta && categoria.etiqueta.trim().length > 0) {
+  // Si viene con etiqueta del backend limpia (que no contenga cadenas crudas de backend)
+  if (
+    categoria.etiqueta &&
+    categoria.etiqueta.trim().length > 0 &&
+    !categoria.etiqueta.toUpperCase().includes("SIN_VINCULO") &&
+    !categoria.etiqueta.toUpperCase().includes("NO_SOCIO") &&
+    !categoria.etiqueta.toUpperCase().includes("SOCIO_INTERNO") &&
+    !categoria.etiqueta.toUpperCase().includes("SOCIO_EXTERNO")
+  ) {
     return categoria.etiqueta;
   }
 
-  const tipo = (categoria.tipoSocio || "").toUpperCase();
-  const vinculo = (categoria.vinculoUnse || "").trim();
+  const tipo = formatTipoSocioLabel(categoria.tipoSocio);
+  const vinculoRaw = (categoria.vinculoUnse || "").trim().toUpperCase();
 
-  if (tipo.includes("NO_SOCIO") || tipo === "NO SOCIO") {
-    return "No Socio";
+  // Si es sin vínculo UNSE o no socio, solo mostramos el tipo
+  if (
+    !vinculoRaw ||
+    vinculoRaw === "SIN_VINCULO_UNSE" ||
+    vinculoRaw === "SIN_VINCULO" ||
+    vinculoRaw === "NINGUNO"
+  ) {
+    return tipo;
   }
 
-  let label = "Socio";
-  if (tipo.includes("INTERNO")) {
-    label = "Socio Interno";
-  } else if (tipo.includes("EXTERNO")) {
-    label = "Socio Externo";
-  }
-
-  if (vinculo) {
-    const formattedVinculo =
-      vinculo.charAt(0).toUpperCase() + vinculo.slice(1).toLowerCase();
-    label += ` · ${formattedVinculo}`;
-  }
-
-  return label;
+  const vinculoFormatted = formatVinculoLabel(categoria.vinculoUnse);
+  return `${tipo} · ${vinculoFormatted}`;
 }
 
 /**
@@ -153,6 +188,17 @@ export function mapUsuarioDtoToUser(dto: UsuarioResponseDto): User {
     rolNombre = String(dto.rol);
   }
 
+  const rawVinculo = categoriaObj?.vinculoUnse;
+  const isSinVinculo =
+    !rawVinculo ||
+    rawVinculo.trim().toUpperCase() === "SIN_VINCULO_UNSE" ||
+    rawVinculo.trim().toUpperCase() === "SIN_VINCULO" ||
+    rawVinculo.trim().toUpperCase() === "NINGUNO";
+
+  const classification = isSinVinculo
+    ? "Sin vínculo UNSE"
+    : formatVinculoLabel(rawVinculo);
+
   return {
     id: String(dto.id),
     name: dto.nombreCompleto || "Usuario SBE",
@@ -161,7 +207,7 @@ export function mapUsuarioDtoToUser(dto: UsuarioResponseDto): User {
     phone: "",
     category: categoryLabel,
     categoriaObj,
-    classification: categoriaObj?.vinculoUnse || "Comunidad UNSE",
+    classification,
     status: estadoMap[dto.estado || ""] || "Activo",
     memberSince: "",
     domicilio: dto.domicilio || "",
@@ -323,7 +369,7 @@ export type Reservation = {
 // ── Pagos ──
 
 export type PaymentConcept = "reserva" | "cuota" | "otro";
-export type PaymentStatus = "aprobado" | "pendiente" | "rechazado";
+export type PaymentStatus = "aprobado" | "pendiente" | "rechazado" | "anulado";
 
 export type Payment = {
   id: string;
@@ -332,8 +378,109 @@ export type Payment = {
   amount: number;
   date: string;
   status: PaymentStatus;
-  reservationId?: string; // si está asociado a una reserva
+  reservationId?: string;
 };
+
+// ── DTOs de Pagos (Spring Boot /api/pagos) ──────────────────────────────────
+
+export type EstadoPago = "PENDIENTE" | "APROBADO" | "RECHAZADO" | "ANULADO";
+export type MetodoPago = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "DEBITO" | "MERCADO_PAGO";
+export type TipoPago = "RESERVA" | "CUOTA_MEMBRESIA";
+
+/**
+ * Espejo exacto del record PagoRequestDto de Spring Boot.
+ */
+export interface PagoRequestDto {
+  idUsuario: number;
+  idReserva?: number | null;
+  tipoPago: TipoPago;
+  periodo?: string | null;
+  montoPago: number;
+  metodoPago: MetodoPago;
+  estadoPago?: EstadoPago | null;
+}
+
+/**
+ * Espejo exacto del record PagoResponseDto de Spring Boot.
+ */
+export interface PagoResponseDto {
+  idPago: number;
+  idUsuario: number;
+  dniUsuario?: string;
+  nombreUsuario?: string;
+  idReserva?: number | null;
+  tipoPago: TipoPago;
+  periodo?: string | null;
+  montoPago: number;
+  metodoPago: MetodoPago;
+  estadoPago: EstadoPago;
+  fechaCreacion: string; // LocalDateTime → ISO string
+  fechaPago?: string | null;
+  registradoPorId?: number | null;
+  registradoPorNombre?: string | null;
+}
+
+/** Convierte un PagoResponseDto al modelo interno Payment de la app */
+export function mapPagoToPayment(dto: PagoResponseDto): Payment {
+  const estadoMap: Record<EstadoPago, PaymentStatus> = {
+    APROBADO: "aprobado",
+    PENDIENTE: "pendiente",
+    RECHAZADO: "rechazado",
+    ANULADO: "anulado",
+  };
+
+  const conceptMap: Record<TipoPago, PaymentConcept> = {
+    RESERVA: "reserva",
+    CUOTA_MEMBRESIA: "cuota",
+  };
+
+  const metodoPagoLabel: Record<MetodoPago, string> = {
+    EFECTIVO: "Efectivo",
+    TRANSFERENCIA: "Transferencia",
+    TARJETA: "Tarjeta",
+    DEBITO: "Débito",
+    MERCADO_PAGO: "Mercado Pago",
+  };
+
+  const concept = conceptMap[dto.tipoPago] ?? "otro";
+
+  let description = "";
+  if (dto.tipoPago === "RESERVA") {
+    description = dto.idReserva
+      ? `Reserva #${dto.idReserva}`
+      : "Pago de reserva";
+  } else if (dto.tipoPago === "CUOTA_MEMBRESIA") {
+    description = dto.periodo
+      ? `Cuota de membresía · ${dto.periodo}`
+      : "Cuota de membresía";
+  } else {
+    description = "Pago";
+  }
+
+  const rawDate = dto.fechaPago ?? dto.fechaCreacion;
+  const dateFormatted = rawDate
+    ? new Date(rawDate).toLocaleDateString("es-AR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      })
+    : "";
+
+  const metodoLabel = metodoPagoLabel[dto.metodoPago] ?? dto.metodoPago;
+  const dateDisplay = dateFormatted
+    ? `${dateFormatted} · ${metodoLabel}`
+    : metodoLabel;
+
+  return {
+    id: String(dto.idPago),
+    concept,
+    description,
+    amount: dto.montoPago,
+    date: dateDisplay,
+    status: estadoMap[dto.estadoPago] ?? "pendiente",
+    reservationId: dto.idReserva != null ? String(dto.idReserva) : undefined,
+  };
+}
 
 // ── Instalaciones / Servicios (Spring Boot: /api/instalaciones) ──
 

@@ -2,8 +2,6 @@ package com.sbe.backend.usuario.service;
 
 import com.sbe.backend.usuario.dto.UsuarioRequestDto;
 import com.sbe.backend.usuario.dto.UsuarioResponseDto;
-import com.sbe.backend.usuario.dto.UsuarioUpdateDto;
-import com.sbe.backend.usuario.dto.UsuarioUpdateMeDto;
 import com.sbe.backend.usuario.entity.Categoria;
 import com.sbe.backend.usuario.entity.Rol;
 import com.sbe.backend.usuario.entity.Usuario;
@@ -23,7 +21,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.NoSuchElementException;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;

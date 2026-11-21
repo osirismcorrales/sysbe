@@ -19,8 +19,8 @@ import { CalendarDays, Loader2, AlertCircle, Clock, CheckCircle2 } from 'lucide-
 import { cn } from '../../../lib/utils';
 import { handleApiFormError } from '../../../lib/handleApiFormError';
 import type { ReservaResponseDto, ReservaRequestDto, ReprogramarReservaRequestDto } from '../services/reservasApi';
-import type { UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
 import type { InstalacionResponseDto } from '../../instalaciones/services/instalacionesApi';
+import { UsuarioSearchSelect } from '../../usuarios/components/UsuarioSearchSelect';
 import {
   listarPlantillas,
   consultarDisponibilidad,
@@ -44,7 +44,6 @@ interface ReservaFormDialogProps {
   onOpenChange: (open: boolean) => void;
   mode: 'crear' | 'reprogramar';
   reserva?: ReservaResponseDto | null;
-  usuarios: UsuarioResponseDto[];
   instalaciones: InstalacionResponseDto[];
   onCrear: (body: ReservaRequestDto) => Promise<ReservaResponseDto>;
   onReprogramar: (idReserva: number, body: ReprogramarReservaRequestDto) => Promise<ReservaResponseDto>;
@@ -108,7 +107,6 @@ export function ReservaFormDialog({
   onOpenChange,
   mode,
   reserva,
-  usuarios,
   instalaciones,
   onCrear,
   onReprogramar,
@@ -275,12 +273,12 @@ export function ReservaFormDialog({
           fechaReserva: '',
           horarioInicio: '',
           horarioFin: '',
-          idUsuario: usuarios[0]?.id ?? 0,
+          idUsuario: 0,
           idInstalacion: instalaciones[0]?.id ?? 0,
         });
       }
     }
-  }, [open, mode, reserva, usuarios, instalaciones, reset]);
+  }, [open, mode, reserva, instalaciones, reset]);
 
   // Al seleccionar turno desde los bloques devueltos por la API
   const handleBloqueSelect = (inicio: string) => {
@@ -340,7 +338,7 @@ export function ReservaFormDialog({
             setSaving(false);
             return;
           }
-        } catch (dispErr) {
+        } catch {
           // Si la verificación falla por red, continuamos hacia la validación del backend
         }
       }
@@ -565,21 +563,28 @@ export function ReservaFormDialog({
             </div>
           </div>
 
-          {/* Usuario — solo en modo crear */}
+          {/* Usuario — solo en modo crear. Búsqueda predictiva por DNI o nombre. */}
           {mode === 'crear' && (
             <div>
               <label className={labelClassName}>Usuario</label>
-              <select
-                {...register('idUsuario')}
-                className={selectClass(!!errors.idUsuario)}
-              >
-                <option value={0} disabled>Selecciona un usuario…</option>
-                {usuarios.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nombreCompleto} ({u.dni})
-                  </option>
-                ))}
-              </select>
+              <Controller
+                control={control}
+                name="idUsuario"
+                render={({ field }) => (
+                  <UsuarioSearchSelect
+                    value={field.value ? Number(field.value) : 0}
+                    onChange={(usuarioId) =>
+                      field.onChange(usuarioId === 'all' ? 0 : usuarioId)
+                    }
+                    allowAll={false}
+                    error={!!errors.idUsuario}
+                    inputClassName="h-9"
+                    className="w-full"
+                    placeholder="Buscar por DNI o nombre…"
+                    title="Buscar usuario por DNI o nombre"
+                  />
+                )}
+              />
               <FieldError message={errors.idUsuario?.message} />
             </div>
           )}

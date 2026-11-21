@@ -76,14 +76,14 @@ export default function ProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background} />
+      <StatusBar barStyle="dark-content" />
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: Spacing["3xl"] }}
         refreshControl={
           <RefreshControl
             refreshing={isFetching}
-            onRefresh={refetch}
+            onRefresh={() => { refetch(); }}
             colors={[Colors.primary]}
             tintColor={Colors.primary}
           />
@@ -165,35 +165,45 @@ export default function ProfileScreen({ navigation }: Props) {
               <View style={{ flex: 1 }}>
                 <Text style={styles.categoryTitle}>{displayUser.category || "No Socio"}</Text>
                 <Text style={styles.categorySubtitle}>
-                  {displayUser.classification ? `Vínculo: ${displayUser.classification}` : "Comunidad UNSE"}
+                  {displayUser.classification && displayUser.classification !== "Sin vínculo UNSE"
+                    ? `Vínculo: ${displayUser.classification}`
+                    : "Comunidad general (Sin vínculo UNSE)"}
                 </Text>
               </View>
             </View>
 
             {displayUser.categoriaObj && (() => {
-              const tipoSocio = (displayUser.categoriaObj?.tipoSocio || "").toUpperCase();
-              const isNoSocio = tipoSocio === "NO_SOCIO" || displayUser.category === "No Socio" || !tipoSocio;
-              const isSocioInterno = tipoSocio === "SOCIO_INTERNO" || displayUser.category.includes("Interno");
-              const porcentaje = displayUser.categoriaObj?.descuento ?? (isNoSocio ? 15 : isSocioInterno ? 20 : 0);
+              const cat = displayUser.categoriaObj!;
+              const tipoSocio = (cat.tipoSocio || "").toUpperCase();
+              const isNoSocio = tipoSocio === "NO_SOCIO" || !tipoSocio;
+              const isSocioExterno = tipoSocio === "SOCIO_EXTERNO";
+              const isSocioInterno = tipoSocio === "SOCIO_INTERNO";
+
+              // null/undefined/0 = sin porcentaje configurado
+              const recargo = (cat.recargo != null && cat.recargo > 0) ? cat.recargo : null;
+              const descuento = (cat.descuento != null && cat.descuento > 0) ? cat.descuento : null;
+
+              let porcentajeText = "Tarifa base";
+              let benefitLabel = "Arancel estándar";
+              let valueColor: string = Colors.textPrimary;
+
+              if (isNoSocio) {
+                porcentajeText = recargo != null ? `+${recargo}%` : "Sin recargo";
+                benefitLabel = "Recargo en reservas";
+                valueColor = recargo != null ? Colors.warning : Colors.textSecondary;
+              } else if (isSocioInterno || isSocioExterno) {
+                porcentajeText = descuento != null ? `-${descuento}%` : "Sin descuento";
+                benefitLabel = "Descuento en reservas";
+                valueColor = descuento != null ? Colors.success : Colors.textSecondary;
+              }
 
               return (
                 <View style={styles.categoryBenefitsRow}>
                   <View style={styles.categoryBenefitItem}>
-                    <Text
-                      style={[
-                        styles.benefitValue,
-                        isNoSocio
-                          ? { color: Colors.warning }
-                          : isSocioInterno
-                          ? { color: Colors.success }
-                          : { color: Colors.textPrimary },
-                      ]}
-                    >
-                      {isNoSocio ? `+${porcentaje}%` : isSocioInterno ? `-${porcentaje}%` : "Tarifa base"}
+                    <Text style={[styles.benefitValue, { color: valueColor }]}>
+                      {porcentajeText}
                     </Text>
-                    <Text style={styles.benefitLabel}>
-                      {isNoSocio ? "Recargo en reservas" : isSocioInterno ? "Descuento en reservas" : "Arancel estándar"}
-                    </Text>
+                    <Text style={styles.benefitLabel}>{benefitLabel}</Text>
                   </View>
                 </View>
               );

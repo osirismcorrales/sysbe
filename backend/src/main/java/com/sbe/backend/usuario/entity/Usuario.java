@@ -2,6 +2,7 @@ package com.sbe.backend.usuario.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import jakarta.persistence.Column;
 
@@ -53,6 +54,10 @@ public class Usuario {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_categoria", nullable = false)
     private Categoria categoria;
+
+    // Fecha en la que el usuario se convierte en socio (auditoría)
+    @Column(name = "fecha_alta_socio")
+    private LocalDate fechaAltaSocio;
 
     public enum EstadoUsuario {
         ACTIVO,

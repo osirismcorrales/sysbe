@@ -6,6 +6,7 @@
 
 import React, { useState } from 'react';
 import { useSocios, type SocioResponseDto } from '../hooks/useSocios';
+import { formatCategoriaNombre } from '../services/sociosApi';
 import { Card, CardContent } from '../../../components/ui/Card';
 import { Button } from '../../../components/ui/Button';
 import { RefreshCw, AlertCircle, Loader2 } from 'lucide-react';
@@ -147,7 +148,7 @@ export function SociosPage() {
                 <option value="all">Todas</option>
                 {categorias.map((cat) => (
                   <option key={cat.idCategoria} value={cat.idCategoria}>
-                    {cat.etiqueta || (cat.vinculoUnse ? `${cat.tipoSocio} · ${cat.vinculoUnse}` : cat.tipoSocio)}
+                    {formatCategoriaNombre(cat)}
                   </option>
                 ))}
               </select>

@@ -54,6 +54,68 @@ export interface CategoriaResponseDto {
   cuotaAnual: number;
 }
 
+// ─── Helpers de formateo ─────────────────────────────────────────────────────
+
+/**
+ * Formatea el vínculo UNSE para que no muestre cadenas crudas como "SIN_VINCULO_UNSE"
+ */
+export function formatVinculo(vinculo?: string | null): string {
+  if (!vinculo) return 'Sin vínculo';
+  const raw = vinculo.trim().toUpperCase();
+  if (
+    raw === 'SIN_VINCULO_UNSE' ||
+    raw === 'SIN_VINCULO' ||
+    raw === 'NINGUNO' ||
+    raw === 'SIN VINCULO'
+  ) {
+    return 'Sin vínculo';
+  }
+  if (raw === 'ALUMNO') return 'Alumno';
+  if (raw === 'DOCENTE') return 'Docente';
+  if (raw === 'NODOCENTE' || raw === 'NO_DOCENTE' || raw === 'NO DOCENTE') {
+    return 'No Docente';
+  }
+  return vinculo.charAt(0).toUpperCase() + vinculo.slice(1).toLowerCase();
+}
+
+/**
+ * Formatea el tipo de socio de la categoría
+ */
+export function formatTipoSocio(tipo?: string | null): string {
+  if (!tipo) return 'No Socio';
+  const raw = tipo.trim().toUpperCase();
+  if (raw === 'SOCIO_INTERNO' || raw === 'INTERNO') return 'Socio Interno';
+  if (raw === 'SOCIO_EXTERNO' || raw === 'EXTERNO') return 'Socio Externo';
+  if (raw === 'NO_SOCIO' || raw === 'NO SOCIO') return 'No Socio';
+  return tipo;
+}
+
+/**
+ * Formatea el nombre completo de una categoría de forma legible
+ */
+export function formatCategoriaNombre(cat: {
+  tipoSocio?: string | null;
+  vinculoUnse?: string | null;
+  etiqueta?: string | null;
+}): string {
+  if (
+    cat.etiqueta &&
+    cat.etiqueta.trim().length > 0 &&
+    !cat.etiqueta.toUpperCase().includes('SIN_VINCULO') &&
+    !cat.etiqueta.toUpperCase().includes('NO_SOCIO') &&
+    !cat.etiqueta.toUpperCase().includes('SOCIO_INTERNO') &&
+    !cat.etiqueta.toUpperCase().includes('SOCIO_EXTERNO')
+  ) {
+    return cat.etiqueta;
+  }
+  const tipo = formatTipoSocio(cat.tipoSocio);
+  const vinculoRaw = (cat.vinculoUnse || '').trim().toUpperCase();
+  if (!vinculoRaw || vinculoRaw === 'SIN_VINCULO_UNSE' || vinculoRaw === 'NINGUNO') {
+    return tipo;
+  }
+  return `${tipo} · ${formatVinculo(cat.vinculoUnse)}`;
+}
+
 // ─── Normalización ───────────────────────────────────────────────────────────
 
 export function normalizeSocio(raw: any): SocioResponseDto {

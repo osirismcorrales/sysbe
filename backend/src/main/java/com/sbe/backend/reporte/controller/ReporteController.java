@@ -1,5 +1,6 @@
 package com.sbe.backend.reporte.controller;
 
+import com.sbe.backend.reporte.dto.PagoReporteDto;
 import com.sbe.backend.reporte.dto.ReporteFiltrosRequestDto;
 import com.sbe.backend.reporte.dto.ReservaReporteDto;
 import com.sbe.backend.reporte.dto.SocioActivoReporteDto;
@@ -41,6 +42,14 @@ public class ReporteController {
             @RequestBody ReporteFiltrosRequestDto filtros,
             @PageableDefault(size = 10) Pageable pageable) {
         Page<SocioActivoReporteDto> reporte = reporteService.obtenerReporteSociosActivos(filtros, pageable);
+        return ResponseEntity.ok(reporte);
+    }
+
+    @PostMapping("/pagos")
+    public ResponseEntity<Page<PagoReporteDto>> obtenerReportePagos(
+            @RequestBody ReporteFiltrosRequestDto filtros,
+            @PageableDefault(size = 10) Pageable pageable) {
+        Page<PagoReporteDto> reporte = reporteService.obtenerReportePagos(filtros, pageable);
         return ResponseEntity.ok(reporte);
     }
 

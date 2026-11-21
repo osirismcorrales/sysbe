@@ -3,13 +3,22 @@ import { queryKeys } from "../queryKeys";
 import { paymentsService, CreatePaymentDTO } from "../services/paymentsService";
 
 /**
- * Hook para consultar el historial de pagos del usuario
+ * Hook para consultar el historial de pagos del usuario autenticado.
+ * Conecta a GET /api/pagos/me y mapea los PagoResponseDto al modelo Payment.
  */
-export function usePayments() {
+export function useMyPagos() {
   return useQuery({
     queryKey: queryKeys.payments.list(),
-    queryFn: () => paymentsService.getAll(),
+    queryFn: () => paymentsService.getMyPayments(),
+    staleTime: 1000 * 60 * 2, // 2 minutos
   });
+}
+
+/**
+ * @deprecated Usar useMyPagos() que conecta al backend real (/api/pagos/me)
+ */
+export function usePayments() {
+  return useMyPagos();
 }
 
 /**

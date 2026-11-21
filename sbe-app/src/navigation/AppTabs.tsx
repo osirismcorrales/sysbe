@@ -3,19 +3,20 @@ import { Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import type { NavigatorScreenParams } from "@react-navigation/native";
 import { Colors } from "../theme";
 
 // Screens & Stacks
 import HomeScreen from "../features/home/screens/HomeScreen";
-import BookingStack from "./BookingStack";
-import PaymentsStack from "./PaymentsStack";
-import ProfileStack from "./ProfileStack";
+import BookingStack, { type BookingStackParamList } from "./BookingStack";
+import PaymentsStack, { type PaymentsStackParamList } from "./PaymentsStack";
+import ProfileStack, { type ProfileStackParamList } from "./ProfileStack";
 
 export type AppTabsParamList = {
   Inicio: undefined;
-  Reservas: undefined;
-  Pagos: undefined;
-  Perfil: undefined;
+  Reservas: NavigatorScreenParams<BookingStackParamList> | undefined;
+  Pagos: NavigatorScreenParams<PaymentsStackParamList> | undefined;
+  Perfil: NavigatorScreenParams<ProfileStackParamList> | undefined;
 };
 
 const Tab = createBottomTabNavigator<AppTabsParamList>();
@@ -52,7 +53,15 @@ export default function AppTabs() {
       })}
     >
       <Tab.Screen name="Inicio" component={HomeScreen} />
-      <Tab.Screen name="Reservas" component={BookingStack} />
+      <Tab.Screen
+        name="Reservas"
+        component={BookingStack}
+        listeners={({ navigation }) => ({
+          tabPress: () => {
+            navigation.navigate("Reservas", { screen: "BookService" });
+          },
+        })}
+      />
       <Tab.Screen name="Pagos" component={PaymentsStack} />
       <Tab.Screen name="Perfil" component={ProfileStack} />
     </Tab.Navigator>

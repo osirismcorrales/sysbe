@@ -50,7 +50,9 @@ public class UsuarioMapper {
                 usuario.getCategoria().getIdCategoria(),
                 usuario.getCategoria().getTipoSocio(),
                 usuario.getCategoria().getVinculoUnse(),
-                usuario.getCategoria().getDescuento()
+                usuario.getCategoria().getDescuento(),
+                usuario.getCategoria().getRecargo(),
+                usuario.getFechaAltaSocio()
         );
     }
 

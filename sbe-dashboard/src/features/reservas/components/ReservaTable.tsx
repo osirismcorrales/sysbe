@@ -6,10 +6,15 @@
 import React from 'react';
 import Badge from '../../../components/ui/Badge';
 import { Button } from '../../../components/ui/Button';
-import { XCircle, CalendarClock, Clock } from 'lucide-react';
+import { XCircle, CalendarClock, Clock, Wallet, CheckCircle2 } from 'lucide-react';
+import { cn } from '../../../lib/utils';
 import type { ReservaResponseDto, EstadoReserva } from '../services/reservasApi';
 import type { UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
 import type { InstalacionResponseDto } from '../../instalaciones/services/instalacionesApi';
+import {
+  ESTADO_PAGO_LABELS,
+  type PagoResponseDto,
+} from '../../pagos/types/pagos.types';
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
@@ -17,8 +22,11 @@ interface ReservaTableProps {
   reservas: ReservaResponseDto[];
   usuarioMap: Map<number, UsuarioResponseDto>;
   instalacionMap: Map<number, InstalacionResponseDto>;
+  pagoPorReserva: Map<number, PagoResponseDto>;
   onCancelar: (reserva: ReservaResponseDto) => void;
   onReprogramar: (reserva: ReservaResponseDto) => void;
+  onRegistrarPago: (reserva: ReservaResponseDto) => void;
+  onAprobarPago: (reserva: ReservaResponseDto, pago: PagoResponseDto) => void;
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -57,14 +65,46 @@ function getEstadoBadge(estado: EstadoReserva) {
   );
 }
 
+const pagoConfig: Record<
+  string,
+  'success' | 'destructive' | 'secondary' | 'warning' | 'info'
+> = {
+  APROBADO: 'success',
+  PENDIENTE: 'warning',
+  RECHAZADO: 'destructive',
+  ANULADO: 'secondary',
+};
+
+function getPagoBadge(pago: PagoResponseDto) {
+  const variant = pagoConfig[pago.estadoPago] || 'secondary';
+  return (
+    <Badge
+      variant={variant}
+      className="text-[9px] font-bold px-1.5 py-0.5 shadow-2xs whitespace-nowrap"
+    >
+      {ESTADO_PAGO_LABELS[pago.estadoPago] || pago.estadoPago}
+    </Badge>
+  );
+}
+
+function formatMontoPago(monto: number): string {
+  return `$ ${Number(monto || 0).toLocaleString('es-AR', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 // ─── Componente ─────────────────────────────────────────────────────────────
 
 export function ReservaTable({
   reservas,
   usuarioMap,
   instalacionMap,
+  pagoPorReserva,
   onCancelar,
   onReprogramar,
+  onRegistrarPago,
+  onAprobarPago,
 }: ReservaTableProps) {
   if (reservas.length === 0) {
     return (
@@ -82,6 +122,10 @@ export function ReservaTable({
           const usuario = usuarioMap.get(reserva.idUsuario);
           const instalacion = instalacionMap.get(reserva.idInstalacion);
           const isActive = reserva.estadoReserva === 'RESERVADA' || reserva.estadoReserva === 'REPROGRAMADA';
+          const pago = pagoPorReserva.get(reserva.idReserva);
+          const pagoPendiente = pago?.estadoPago === 'PENDIENTE';
+          const puedeGestionarPago =
+            reserva.estadoReserva !== 'CANCELADA' && pago?.estadoPago !== 'APROBADO';
 
           return (
             <div
@@ -123,7 +167,51 @@ export function ReservaTable({
                     ${reserva.montoReserva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                   </span>
                 </div>
+                <div className="col-span-2 flex items-center justify-between pt-1 border-t border-gray-100">
+                  <span className="text-[10px] text-gray-400 font-medium">Pago asociado:</span>
+                  {pago ? (
+                    <span className="flex items-center gap-1.5">
+                      {getPagoBadge(pago)}
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        #{pago.idPago} · {formatMontoPago(pago.montoPago)}
+                      </span>
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-gray-400 font-semibold">Sin pago</span>
+                  )}
+                </div>
               </div>
+
+              {/* Acción de pago móvil */}
+              {puedeGestionarPago && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    pagoPendiente && pago
+                      ? onAprobarPago(reserva, pago)
+                      : onRegistrarPago(reserva)
+                  }
+                  className={cn(
+                    'w-full h-7 text-[10px] font-semibold cursor-pointer justify-center',
+                    pagoPendiente
+                      ? 'text-blue-700 border-blue-200 hover:bg-blue-50'
+                      : 'text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                  )}
+                >
+                  {pagoPendiente ? (
+                    <>
+                      <CheckCircle2 className="h-3 w-3 mr-1 shrink-0" />
+                      Aprobar pago pendiente
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="h-3 w-3 mr-1 shrink-0" />
+                      Registrar pago
+                    </>
+                  )}
+                </Button>
+              )}
 
               {/* Botones de acción móviles */}
               {isActive && (
@@ -163,8 +251,9 @@ export function ReservaTable({
               <th className="py-2.5 px-3 whitespace-nowrap w-24">Fecha</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-28">Horario</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-24">Monto</th>
+              <th className="py-2.5 px-3 whitespace-nowrap w-32">Pago</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-24">Estado</th>
-              <th className="py-2.5 px-3 text-right whitespace-nowrap w-36">Acciones</th>
+              <th className="py-2.5 px-3 text-right whitespace-nowrap w-32">Acciones</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100 font-medium text-gray-700 text-xs">
@@ -172,6 +261,10 @@ export function ReservaTable({
               const usuario = usuarioMap.get(reserva.idUsuario);
               const instalacion = instalacionMap.get(reserva.idInstalacion);
               const isActive = reserva.estadoReserva === 'RESERVADA' || reserva.estadoReserva === 'REPROGRAMADA';
+              const pago = pagoPorReserva.get(reserva.idReserva);
+              const pagoPendiente = pago?.estadoPago === 'PENDIENTE';
+              const puedeGestionarPago =
+                reserva.estadoReserva !== 'CANCELADA' && pago?.estadoPago !== 'APROBADO';
 
               return (
                 <tr key={reserva.idReserva} className="hover:bg-gray-50/40 transition-colors">
@@ -185,7 +278,7 @@ export function ReservaTable({
                   </td>
                   <td className="py-2.5 px-3 min-w-0">
                     <div
-                      className="font-semibold text-gray-900 text-xs truncate max-w-[150px] lg:max-w-[220px] xl:max-w-none"
+                      className="font-semibold text-gray-900 text-xs truncate max-w-[150px] lg:max-w-[190px] xl:max-w-[210px]"
                       title={usuario?.nombreCompleto || `Usuario #${reserva.idUsuario}`}
                     >
                       {usuario?.nombreCompleto || `Usuario #${reserva.idUsuario}`}
@@ -211,21 +304,60 @@ export function ReservaTable({
                     </span>
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
+                    {pago ? (
+                      <div className="flex flex-col items-start gap-0.5">
+                        {getPagoBadge(pago)}
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          #{pago.idPago} · {formatMontoPago(pago.montoPago)}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-gray-400 font-semibold">Sin pago</span>
+                    )}
+                  </td>
+                  <td className="py-2.5 px-3 whitespace-nowrap">
                     {getEstadoBadge(reserva.estadoReserva)}
                   </td>
                   <td className="py-2.5 px-3 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1">
+                      {puedeGestionarPago && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            pagoPendiente && pago
+                              ? onAprobarPago(reserva, pago)
+                              : onRegistrarPago(reserva)
+                          }
+                          className={cn(
+                            'h-7 w-7 p-0 cursor-pointer',
+                            pagoPendiente
+                              ? 'text-blue-700 border-blue-200 hover:bg-blue-50'
+                              : 'text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                          )}
+                          title={
+                            pagoPendiente
+                              ? `Aprobar el pago #${pago.idPago} pendiente`
+                              : 'Registrar pago'
+                          }
+                        >
+                          {pagoPendiente ? (
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                          ) : (
+                            <Wallet className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      )}
                       {isActive && (
                         <>
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => onReprogramar(reserva)}
-                            className="h-7 px-2 text-[10px] font-semibold cursor-pointer"
+                            className="h-7 w-7 p-0 hover:bg-blue-50 cursor-pointer"
                             title="Reprogramar"
                           >
-                            <CalendarClock className="h-3 w-3 mr-1 text-blue-500" />
-                            Reprogramar
+                            <CalendarClock className="h-3.5 w-3.5 text-blue-500" />
                           </Button>
                           <Button
                             size="sm"

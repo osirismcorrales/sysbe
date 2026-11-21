@@ -13,6 +13,7 @@ import { FieldError } from '../../../components/ui/FieldError';
 import { handleApiFormError } from '../../../lib/handleApiFormError';
 import { Loader2 } from 'lucide-react';
 import type { SocioResponseDto, CategoriaResponseDto } from '../services/sociosApi';
+import { formatVinculo } from '../services/sociosApi';
 import {
   asignarCategoriaSchema,
   type AsignarCategoriaFormValues,
@@ -160,7 +161,7 @@ export function CambiarCategoriaDialog({
             >
               {availableVinculosForTipo.map((cat) => (
                 <option key={cat.idCategoria} value={cat.vinculoUnse ?? ''}>
-                  {cat.vinculoUnse ? cat.vinculoUnse : 'Sin vínculo'}
+                  {formatVinculo(cat.vinculoUnse)}
                 </option>
               ))}
             </select>

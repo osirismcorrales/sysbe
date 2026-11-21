@@ -72,11 +72,13 @@ export const ENDPOINTS = {
     REPROGRAMAR: (id: string | number) => `/reservas/${id}/reprogramar`,
   },
 
-  // Pagos
+  // Pagos (Spring Boot: @RequestMapping("/api/pagos"))
   PAYMENTS: {
-    LIST: "/payments",
-    DETAIL: (id: string) => `/payments/${id}`,
-    CREATE: "/payments",
+    LIST: "/pagos",
+    DETAIL: (id: string | number) => `/pagos/${id}`,
+    CREATE: "/pagos",
+    ME: "/pagos/me",
+    BY_USER: (idUsuario: string | number) => `/pagos/usuario/${idUsuario}`,
     PAY_MEMBERSHIP: "/payments/membership",
   },
 

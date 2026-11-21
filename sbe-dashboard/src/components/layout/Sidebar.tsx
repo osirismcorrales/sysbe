@@ -8,6 +8,7 @@ import {
   CalendarCheck,
   FileText,
   LogOut,
+  Wallet,
   X
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -51,7 +52,8 @@ export function Sidebar({ className, isOpen, onClose }: SidebarProps) {
         { name: 'Usuarios', to: '/usuarios', icon: Users },
         { name: 'Socios', to: '/socios', icon: UserCheck },
         { name: 'Reservas', to: '/reservas', icon: CalendarDays },
-        { name: 'Instalaciones', to: '/instalaciones', icon: CalendarCheck }
+        { name: 'Instalaciones', to: '/instalaciones', icon: CalendarCheck },
+        { name: 'Pagos', to: '/pagos', icon: Wallet }
       ]
     },
     {

@@ -98,20 +98,25 @@ public class ReservaServiceImpl implements ReservaService{
         reserva.setEstado(EstadoReserva.RESERVADA);
 
         BigDecimal precioBase = instalacion.getPrecioBase();
-        String tipoSocio = usuario.getCategoria().getTipoSocio();
-        BigDecimal porcentaje = usuario.getCategoria().getDescuento();
-
-        BigDecimal montoVariacion = precioBase
-                .multiply(porcentaje)
-                .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+        BigDecimal descuento = usuario.getCategoria().getDescuento();
+        BigDecimal recargo = usuario.getCategoria().getRecargo();
 
         BigDecimal montoFinal;
 
-        if ("NO_SOCIO".equalsIgnoreCase(tipoSocio)) {
-            montoFinal = precioBase.add(montoVariacion);
-        } else if ("SOCIO_INTERNO".equalsIgnoreCase(tipoSocio)) {
-            montoFinal = precioBase.subtract(montoVariacion);
+        if (recargo != null && recargo.compareTo(BigDecimal.ZERO) > 0) {
+            // NO_SOCIO: se aplica recargo
+            BigDecimal montoRecargo = precioBase
+                    .multiply(recargo)
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            montoFinal = precioBase.add(montoRecargo);
+        } else if (descuento != null && descuento.compareTo(BigDecimal.ZERO) > 0) {
+            // SOCIO_INTERNO / SOCIO_EXTERNO: se aplica descuento
+            BigDecimal montoDescuento = precioBase
+                    .multiply(descuento)
+                    .divide(BigDecimal.valueOf(100), 2, java.math.RoundingMode.HALF_UP);
+            montoFinal = precioBase.subtract(montoDescuento);
         } else {
+            // Sin descuento ni recargo
             montoFinal = precioBase;
         }
 

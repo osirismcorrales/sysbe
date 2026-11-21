@@ -28,8 +28,13 @@ public class Categoria {
     @Column(name = "vinculo_unse", nullable = true, length = 30)
     private String vinculoUnse;
 
-    @Column(name = "descuento_porcentaje", nullable = false, precision = 5, scale = 2)
+    // Descuento: solo aplica a socios (SOCIO_INTERNO, SOCIO_EXTERNO). Mutuamente excluyente con recargo.
+    @Column(name = "descuento_porcentaje", nullable = true, precision = 5, scale = 2)
     private BigDecimal descuento;
+
+    // Recargo: solo aplica a NO_SOCIO. Mutuamente excluyente con descuento.
+    @Column(name = "recargo_porcentaje", nullable = true, precision = 5, scale = 2)
+    private BigDecimal recargo;
 
     @Column(name = "cuota_mensual", nullable = false, precision = 10, scale = 2)
     private BigDecimal cuotaMensual;

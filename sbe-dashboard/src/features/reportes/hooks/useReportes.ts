@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
+  getReportePagosPaginado,
   getReporteReservasServicioPaginado,
   getReporteSociosActivosPaginado,
 } from '../services/reportesApi';
@@ -9,6 +10,7 @@ import type {
   TipoReporte,
   ReservaReporteDto,
   SocioActivoReporteDto,
+  PagoReporteDto,
   ReporteFiltrosRequestDto,
 } from '../types/reportes.types';
 
@@ -22,15 +24,18 @@ export function useReportes() {
 
   const [reservasReporte, setReservasReporte] = useState<ReservaReporteDto[]>([]);
   const [sociosReporte, setSociosReporte] = useState<SocioActivoReporteDto[]>([]);
+  const [pagosReporte, setPagosReporte] = useState<PagoReporteDto[]>([]);
 
-  // Estados de paginación
+  // Estados de paginación (inicia en 5 para coincidir con el primer valor de pageSizeOptions)
   const [page, setPageState] = useState(0);
-  const [size, setSizeState] = useState(10);
+  const [size, setSizeState] = useState(5);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
-  // Mantener filtros vigentes para paginación
+  // Referencias mutables para mantener el tamaño y filtros vigentes sin problemas de closures
   const filtrosRef = useRef<ReporteFiltrosRequestDto>({});
+  const sizeRef = useRef(5);
+  sizeRef.current = size;
 
   useEffect(() => {
     getUsuarios({ size: 100 })
@@ -42,11 +47,15 @@ export function useReportes() {
       .catch(() => setInstalaciones([]));
   }, []);
 
-  const construirPayload = (filtros: ReporteFiltrosRequestDto): Record<string, any> => {
-    const payload: Record<string, any> = {};
+  const construirPayload = (filtros: ReporteFiltrosRequestDto): ReporteFiltrosRequestDto => {
+    const payload: ReporteFiltrosRequestDto = {};
+    if (filtros.dni?.trim()) payload.dni = filtros.dni.trim();
     if (filtros.nombreUsuario?.trim()) payload.nombreUsuario = filtros.nombreUsuario.trim();
     if (filtros.tipoUsuario?.trim()) payload.tipoUsuario = filtros.tipoUsuario.trim();
+    if (filtros.tipoInstalacion?.trim()) payload.tipoInstalacion = filtros.tipoInstalacion.trim();
     if (filtros.tipoServicio?.trim()) payload.tipoInstalacion = filtros.tipoServicio.trim();
+    if (filtros.tipoPago?.trim()) payload.tipoPago = filtros.tipoPago.trim();
+    if (filtros.estado?.trim()) payload.estado = filtros.estado.trim();
     if (filtros.fechaDesde?.trim()) payload.fechaDesde = filtros.fechaDesde.trim();
     if (filtros.fechaHasta?.trim()) payload.fechaHasta = filtros.fechaHasta.trim();
     return payload;
@@ -66,7 +75,8 @@ export function useReportes() {
 
       try {
         if (tipo === 'socios-activos') {
-          const payloadSocios: Record<string, any> = {};
+          const payloadSocios: ReporteFiltrosRequestDto = {};
+          if (payload.dni) payloadSocios.dni = payload.dni;
           if (payload.nombreUsuario) payloadSocios.nombreUsuario = payload.nombreUsuario;
           if (payload.tipoUsuario) payloadSocios.tipoUsuario = payload.tipoUsuario;
 
@@ -75,6 +85,22 @@ export function useReportes() {
             size: targetSize,
           });
           setSociosReporte(pageData.content);
+          setTotalPages(pageData.totalPages);
+          setTotalElements(pageData.totalElements);
+        } else if (tipo === 'pagos') {
+          const payloadPagos: ReporteFiltrosRequestDto = {};
+          if (payload.dni) payloadPagos.dni = payload.dni;
+          if (payload.nombreUsuario) payloadPagos.nombreUsuario = payload.nombreUsuario;
+          if (payload.tipoPago) payloadPagos.tipoPago = payload.tipoPago;
+          if (payload.estado) payloadPagos.estado = payload.estado;
+          if (payload.fechaDesde) payloadPagos.fechaDesde = payload.fechaDesde;
+          if (payload.fechaHasta) payloadPagos.fechaHasta = payload.fechaHasta;
+
+          const pageData = await getReportePagosPaginado(payloadPagos, {
+            page: targetPage,
+            size: targetSize,
+          });
+          setPagosReporte(pageData.content);
           setTotalPages(pageData.totalPages);
           setTotalElements(pageData.totalElements);
         } else {
@@ -99,40 +125,46 @@ export function useReportes() {
     (filtrosRaw: ReporteFiltrosRequestDto = {}, tipo = tipoReporte) => {
       filtrosRef.current = filtrosRaw;
       setPageState(0);
-      ejecutarConsulta(filtrosRaw, tipo, 0, size);
+      ejecutarConsulta(filtrosRaw, tipo, 0, sizeRef.current);
     },
-    [tipoReporte, size, ejecutarConsulta]
+    [tipoReporte, ejecutarConsulta]
   );
 
   const setPage = useCallback(
     (newPage: number) => {
       setPageState(newPage);
-      ejecutarConsulta(filtrosRef.current, tipoReporte, newPage, size);
+      ejecutarConsulta(filtrosRef.current, tipoReporte, newPage, sizeRef.current);
     },
-    [tipoReporte, size, ejecutarConsulta]
+    [tipoReporte, ejecutarConsulta]
   );
 
   const setSize = useCallback(
     (newSize: number) => {
       setSizeState(newSize);
+      sizeRef.current = newSize;
       setPageState(0);
       ejecutarConsulta(filtrosRef.current, tipoReporte, 0, newSize);
     },
     [tipoReporte, ejecutarConsulta]
   );
 
-  const cambiarTipoReporte = (nuevoTipo: TipoReporte) => {
-    setTipoReporte(nuevoTipo);
-    filtrosRef.current = {};
-    setPageState(0);
-    ejecutarConsulta({}, nuevoTipo, 0, size);
-  };
+  const cambiarTipoReporte = useCallback(
+    (nuevoTipo: TipoReporte) => {
+      setTipoReporte(nuevoTipo);
+      filtrosRef.current = {};
+      setPageState(0);
+      // Mantener el tamaño de página actual configurado por el usuario
+      ejecutarConsulta({}, nuevoTipo, 0, sizeRef.current);
+    },
+    [ejecutarConsulta]
+  );
 
   return {
     tipoReporte,
     cambiarTipoReporte,
     reservasReporte,
     sociosReporte,
+    pagosReporte,
     usuarios,
     instalaciones,
     loading,
