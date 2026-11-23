@@ -40,6 +40,10 @@ public class Pago {
     @Column(name = "monto_pago", nullable = false, precision = 12, scale = 2)
     private BigDecimal montoPago;
 
+    @Column(name = "puntos_usados")
+    @Builder.Default
+    private Integer puntosUsados = 0;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "metodo_pago", nullable = false, length = 30)
     private MetodoPago metodoPago;

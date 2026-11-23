@@ -71,7 +71,7 @@ export function useReservas(): UseReservasResult {
     setPage(0);
   }, []);
 
-  // Cargar usuarios e instalaciones para relaciones/labels (una sola vez)
+  // Cargar usuarios e instalaciones y actualizar el saldo tras usar puntos.
   useEffect(() => {
     Promise.all([
       getUsuarios({ size: 100 }).catch(() => [] as UsuarioResponseDto[]),
@@ -80,7 +80,7 @@ export function useReservas(): UseReservasResult {
       setUsuarios(usuariosData);
       setInstalaciones(instalacionesData);
     });
-  }, []);
+  }, [tick]);
 
   // Cargar reservas paginadas
   useEffect(() => {
@@ -88,7 +88,7 @@ export function useReservas(): UseReservasResult {
     setLoading(true);
     setError(null);
 
-    getReservasPaginadas({ page, size, sort: 'fechaReserva,desc' })
+    getReservasPaginadas({ page, size, sort: 'fechaCreacion,desc' })
       .then((pageData) => {
         if (!cancelled) {
           setReservas(pageData.content);
@@ -108,16 +108,39 @@ export function useReservas(): UseReservasResult {
     };
   }, [page, size, tick]);
 
-  // Cargar los pagos de tipo RESERVA para saber qué reservas están pagadas.
-  // No hay endpoint "pagos por reserva", así que se traen todos los pagos de
-  // reservas (el volumen es bajo) y se indexan por idReserva.
+  // Cargar todas las páginas de pagos de tipo RESERVA para que una reserva
+  // antigua no aparezca como "Sin pago" cuando su pago quede fuera de la
+  // primera página.
   useEffect(() => {
     let cancelled = false;
     setPagosLoading(true);
 
-    getPagosPaginados({ tipoPago: 'RESERVA', size: 500, sort: 'fechaCreacion,desc' })
-      .then((pageData) => {
-        if (!cancelled) setPagosReserva(pageData.content);
+    const cargarPagosReserva = async () => {
+      const pageSize = 200;
+      const primeraPagina = await getPagosPaginados({
+        tipoPago: 'RESERVA',
+        page: 0,
+        size: pageSize,
+        sort: 'fechaCreacion,desc',
+      });
+      const pagos = [...primeraPagina.content];
+
+      for (let pagina = 1; pagina < primeraPagina.totalPages; pagina += 1) {
+        const resultado = await getPagosPaginados({
+          tipoPago: 'RESERVA',
+          page: pagina,
+          size: pageSize,
+          sort: 'fechaCreacion,desc',
+        });
+        pagos.push(...resultado.content);
+      }
+
+      return pagos;
+    };
+
+    cargarPagosReserva()
+      .then((pagos) => {
+        if (!cancelled) setPagosReserva(pagos);
       })
       .catch(() => {
         if (!cancelled) setPagosReserva([]);

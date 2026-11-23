@@ -13,7 +13,7 @@ import { CalendarDays, Plus, RefreshCw, AlertCircle, Loader2, Search, Wallet, Ch
 
 // Componentes presentacionales
 import { ReservaTable } from '../components/ReservaTable';
-import { ReservaFormDialog } from '../components/ReservaFormDialog';
+import { ReservaFormDialog, type PagoCreacionData } from '../components/ReservaFormDialog';
 import { Pagination } from '../../../components/ui/Pagination';
 import { toast } from '../../../components/ui/Toast';
 import { PagoFormDialog, type PagoFormPrefill } from '../../pagos/components/PagoFormDialog';
@@ -77,7 +77,8 @@ export function ReservasPage() {
       (usuario?.nombreCompleto || '').toLowerCase().includes(searchLower) ||
       (usuario?.dni || '').includes(searchQuery) ||
       (instalacion?.nombre || '').toLowerCase().includes(searchLower) ||
-      r.fechaReserva.includes(searchQuery);
+      r.fechaReserva.includes(searchQuery) ||
+      (r.fechaCreacion || '').includes(searchQuery);
 
     return matchesEstado && matchesPago && matchesSearch;
   });
@@ -85,6 +86,37 @@ export function ReservasPage() {
   // ─── Modal: Crear reserva ─────────────────────────────────────────────────
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const handleCrearReserva = async (
+    body: any,
+    pagoData?: PagoCreacionData
+  ): Promise<ReservaResponseDto> => {
+    const nuevaReserva = await crear(body);
+    if (pagoData) {
+      try {
+        await crearPago({
+          idUsuario: Number(nuevaReserva.idUsuario),
+          idReserva: Number(nuevaReserva.idReserva),
+          tipoPago: 'RESERVA',
+          montoPago: Math.max(0, Number(nuevaReserva.montoReserva) - pagoData.puntosUsados),
+          puntosUsados: pagoData.puntosUsados,
+          metodoPago: pagoData.metodoPago,
+          estadoPago: pagoData.estadoPago,
+        });
+        toast.success(
+          `Reserva #${nuevaReserva.idReserva} creada con pago registrado (${ESTADO_PAGO_LABELS[pagoData.estadoPago]}).`
+        );
+      } catch (pagoErr) {
+        toast.error(
+          `Reserva creada, pero ocurrió un error al registrar el pago: ${(pagoErr as Error).message}`
+        );
+      }
+    } else {
+      toast.success(`Reserva #${nuevaReserva.idReserva} creada correctamente.`);
+    }
+    refresh();
+    return nuevaReserva;
+  };
 
   // ─── Modal: Reprogramar reserva ───────────────────────────────────────────
 
@@ -287,7 +319,7 @@ export function ReservasPage() {
         onOpenChange={setIsCreateOpen}
         mode="crear"
         instalaciones={instalaciones}
-        onCrear={crear}
+        onCrear={handleCrearReserva}
         onReprogramar={reprogramar}
       />
 

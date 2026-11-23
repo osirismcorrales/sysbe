@@ -109,6 +109,19 @@ export function SocioTable({ socios, onEdit, onDarDeBaja, onAjustePuntos }: Soci
               <div>
                 <span className="text-[10px] text-gray-400 font-medium block">Categoría</span>
                 <div className="mt-0.5">{getCategoriaBadge(socio.tipoSocio)}</div>
+                {Number(socio.descuentoPorcentaje) > 0 ? (
+                  <span className="text-[10px] font-semibold text-green-600 block mt-0.5">
+                    -{socio.descuentoPorcentaje}% desc.
+                  </span>
+                ) : Number(socio.recargoPorcentaje) > 0 ? (
+                  <span className="text-[10px] font-semibold text-amber-600 block mt-0.5">
+                    +{socio.recargoPorcentaje}% recargo
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-normal text-gray-400 block mt-0.5">
+                    Sin descuento
+                  </span>
+                )}
               </div>
               <div>
                 <span className="text-[10px] text-gray-400 font-medium block">Vínculo UNSE</span>
@@ -195,6 +208,19 @@ export function SocioTable({ socios, onEdit, onDarDeBaja, onAjustePuntos }: Soci
                       title={formatVinculo(socio.vinculoUnse)}
                     >
                       {formatVinculo(socio.vinculoUnse)}
+                    </span>
+                  )}
+                  {Number(socio.descuentoPorcentaje) > 0 ? (
+                    <span className="text-[10px] font-semibold text-green-600 block mt-0.5">
+                      -{socio.descuentoPorcentaje}% desc.
+                    </span>
+                  ) : Number(socio.recargoPorcentaje) > 0 ? (
+                    <span className="text-[10px] font-semibold text-amber-600 block mt-0.5">
+                      +{socio.recargoPorcentaje}% recargo
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-normal text-gray-400 block mt-0.5">
+                      Sin descuento
                     </span>
                   )}
                 </td>

@@ -6,11 +6,11 @@
  * - Usuario: obligatorio.
  * - Tipo de pago: RESERVA (requiere reserva del usuario) o CUOTA_MEMBRESIA (requiere período).
  * - Monto: se autocompleta al elegir una reserva y puede editarse.
- * - Estado inicial: PENDIENTE o APROBADO.
+ * - El estado inicial del pago siempre es APROBADO.
  */
 
 import React, { useState, useEffect } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../../../components/ui/Dialog';
 import { Button } from '../../../components/ui/Button';
@@ -20,8 +20,6 @@ import { cn } from '../../../lib/utils';
 import { handleApiFormError } from '../../../lib/handleApiFormError';
 import type { PagoRequestDto, PagoResponseDto } from '../types/pagos.types';
 import {
-  ESTADOS_PAGO,
-  ESTADO_PAGO_LABELS,
   METODOS_PAGO,
   METODO_PAGO_LABELS,
   TIPOS_PAGO,
@@ -29,11 +27,13 @@ import {
   type MetodoPago,
   type TipoPago,
 } from '../types/pagos.types';
-import type { UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
+import { getUsuarioById, type UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
+import { UsuarioSearchSelect } from '../../usuarios/components/UsuarioSearchSelect';
 import {
   getReservasUsuario,
   type ReservaResponseDto,
 } from '../../reservas/services/reservasApi';
+import { getPagosUsuario } from '../services/pagosApi';
 import { pagoRequestSchema, getPeriodoActual, type PagoFormValues } from '../schemas/pagoSchemas';
 import { formatMonto } from '../utils/pagoFormat';
 
@@ -49,7 +49,7 @@ export interface PagoFormPrefill {
 interface PagoFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  usuarios: UsuarioResponseDto[];
+  usuarios?: UsuarioResponseDto[];
   onCrear: (body: PagoRequestDto) => Promise<PagoResponseDto>;
   /** Datos iniciales para registrar un pago desde una reserva. */
   prefill?: PagoFormPrefill | null;
@@ -98,13 +98,15 @@ function formatHora(hora: string): string {
 export function PagoFormDialog({
   open,
   onOpenChange,
-  usuarios,
+  usuarios = [],
   onCrear,
   prefill = null,
 }: PagoFormDialogProps) {
   const [formError, setFormError] = useState<string | null>(null);
   const [reservasUsuario, setReservasUsuario] = useState<ReservaResponseDto[]>([]);
   const [loadingReservas, setLoadingReservas] = useState(false);
+  const [puntosUsados, setPuntosUsados] = useState(0);
+  const [saldoPuntosUsuario, setSaldoPuntosUsuario] = useState<number | null>(null);
 
   const {
     register,
@@ -114,6 +116,7 @@ export function PagoFormDialog({
     watch,
     getValues,
     reset,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<PagoFormValues>({
     resolver: zodResolver(pagoRequestSchema) as any,
@@ -124,13 +127,21 @@ export function PagoFormDialog({
       periodo: getPeriodoActual(),
       montoPago: 0,
       metodoPago: 'EFECTIVO',
-      estadoPago: 'PENDIENTE',
+      estadoPago: 'APROBADO',
     },
   });
 
   const idUsuario = Number(watch('idUsuario')) || 0;
   const tipoPago = watch('tipoPago');
   const idReserva = Number(watch('idReserva')) || 0;
+  const montoIngresado = Number(watch('montoPago')) || 0;
+  const reservaSeleccionada = reservasUsuario.find((reserva) => reserva.idReserva === idReserva);
+  const puntosDisponibles = saldoPuntosUsuario ?? usuarios.find((usuario) => usuario.id === idUsuario)?.puntosAc ?? 0;
+  const montoParaPuntos = tipoPago === 'RESERVA'
+    ? Number(reservaSeleccionada?.montoReserva ?? 0)
+    : montoIngresado;
+  const maxPuntosAplicables = Math.min(puntosDisponibles, Math.floor(Math.max(0, montoParaPuntos)));
+  const puntosAplicados = Math.min(puntosUsados, maxPuntosAplicables);
 
   // Valores primitivos del prefill: evitan re-ejecutar el reset en cada render
   // por identidad del objeto.
@@ -144,24 +155,42 @@ export function PagoFormDialog({
     if (!open) return;
     setFormError(null);
     setReservasUsuario([]);
+    setPuntosUsados(0);
     reset({
-      idUsuario: prefillIdUsuario || usuarios[0]?.id || 0,
+      idUsuario: prefillIdUsuario || 0,
       tipoPago: prefillTipo,
       idReserva: prefillIdReserva,
       periodo: getPeriodoActual(),
       montoPago: prefillMonto,
       metodoPago: 'EFECTIVO',
-      estadoPago: 'PENDIENTE',
+      estadoPago: 'APROBADO',
     });
   }, [
     open,
     reset,
-    usuarios,
     prefillIdUsuario,
     prefillIdReserva,
     prefillMonto,
     prefillTipo,
   ]);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSaldoPuntosUsuario(null);
+    if (!open || !idUsuario) return;
+
+    getUsuarioById(idUsuario)
+      .then((usuario) => {
+        if (!cancelled) setSaldoPuntosUsuario(Number(usuario.puntosAc) || 0);
+      })
+      .catch(() => {
+        if (!cancelled) setSaldoPuntosUsuario(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, idUsuario]);
 
   // Cargar las reservas del usuario elegido (solo para pagos de tipo RESERVA)
   useEffect(() => {
@@ -174,9 +203,15 @@ export function PagoFormDialog({
     }
 
     setLoadingReservas(true);
-    getReservasUsuario(idUsuario)
-      .then((data) => {
-        if (!cancelled) setReservasUsuario(data);
+    Promise.all([getReservasUsuario(idUsuario), getPagosUsuario(idUsuario)])
+      .then(([data, pagos]) => {
+        if (cancelled) return;
+        const reservasConPagoPendiente = new Set(
+          pagos
+            .filter((pago) => pago.tipoPago === 'RESERVA' && pago.estadoPago === 'PENDIENTE' && pago.idReserva != null)
+            .map((pago) => pago.idReserva as number)
+        );
+        setReservasUsuario(data.filter((reserva) => reservasConPagoPendiente.has(reserva.idReserva)));
       })
       .catch(() => {
         if (!cancelled) setReservasUsuario([]);
@@ -197,6 +232,7 @@ export function PagoFormDialog({
     setValue('tipoPago', nuevoTipo, { shouldValidate: true });
     setValue('idReserva', 0);
     setValue('montoPago', 0);
+    setPuntosUsados(0);
 
     if (nuevoTipo === 'CUOTA_MEMBRESIA' && !getValues('periodo')) {
       setValue('periodo', getPeriodoActual(), { shouldValidate: true });
@@ -206,6 +242,7 @@ export function PagoFormDialog({
   const handleUsuarioChange = () => {
     setValue('idReserva', 0);
     setValue('montoPago', 0);
+    setPuntosUsados(0);
   };
 
   const handleReservaChange = (value: string) => {
@@ -214,6 +251,7 @@ export function PagoFormDialog({
 
     const reserva = reservasUsuario.find((r) => r.idReserva === nuevoId);
     if (reserva) {
+      setPuntosUsados(0);
       setValue('montoPago', Number(reserva.montoReserva), { shouldValidate: true });
     }
   };
@@ -227,9 +265,10 @@ export function PagoFormDialog({
         tipoPago: data.tipoPago,
         idReserva: data.tipoPago === 'RESERVA' ? Number(data.idReserva) : null,
         periodo: data.tipoPago === 'CUOTA_MEMBRESIA' ? (data.periodo ?? '').trim() : null,
-        montoPago: Number(data.montoPago),
+        montoPago: Math.max(0, Number(data.montoPago) - puntosAplicados),
+        puntosUsados: puntosAplicados,
         metodoPago: data.metodoPago as MetodoPago,
-        estadoPago: data.estadoPago,
+        estadoPago: 'APROBADO',
       });
       onOpenChange(false);
     } catch (err) {
@@ -252,28 +291,35 @@ export function PagoFormDialog({
         </DialogHeader>
 
         <form onSubmit={handleSubmit(onSubmitValid)} className="space-y-4 mt-2">
-          {/* Usuario */}
+          {/* Usuario: Búsqueda predictiva por DNI o nombre */}
           <div>
             <label className={labelClassName}>Usuario</label>
-            <select
-              {...register('idUsuario', { onChange: handleUsuarioChange })}
-              className={selectClass(!!errors.idUsuario)}
-              disabled={usuarios.length === 0}
-            >
-              <option value={0} disabled>
-                {usuarios.length === 0 ? 'No hay usuarios disponibles…' : 'Selecciona un usuario…'}
-              </option>
-              {usuarios.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.nombreCompleto} ({u.dni})
-                </option>
-              ))}
-            </select>
+            <Controller
+              control={control}
+              name="idUsuario"
+              render={({ field }) => (
+                <UsuarioSearchSelect
+                  value={field.value ? Number(field.value) : 0}
+                  onChange={(usuarioId) => {
+                    const nuevoId = usuarioId === 'all' ? 0 : Number(usuarioId);
+                    field.onChange(nuevoId);
+                    handleUsuarioChange();
+                  }}
+                  allowAll={false}
+                  error={!!errors.idUsuario}
+                  disabled={isSubmitting}
+                  inputClassName="h-9"
+                  className="w-full"
+                  placeholder="Buscar por DNI o nombre…"
+                  title="Buscar usuario por DNI o nombre"
+                />
+              )}
+            />
             <FieldError message={errors.idUsuario?.message} />
           </div>
 
-          {/* Tipo de pago / Estado inicial */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Tipo de pago */}
+          <div>
             <div>
               <label className={labelClassName}>Tipo de pago</label>
               <select
@@ -290,22 +336,6 @@ export function PagoFormDialog({
               <FieldError message={errors.tipoPago?.message} />
             </div>
 
-            <div>
-              <label className={labelClassName}>Estado inicial</label>
-              <select
-                {...register('estadoPago')}
-                className={selectClass(!!errors.estadoPago)}
-              >
-                {ESTADOS_PAGO.filter((estado) => estado === 'PENDIENTE' || estado === 'APROBADO').map(
-                  (estado) => (
-                    <option key={estado} value={estado}>
-                      {ESTADO_PAGO_LABELS[estado]}
-                    </option>
-                  )
-                )}
-              </select>
-              <FieldError message={errors.estadoPago?.message} />
-            </div>
           </div>
 
           {/* Reserva o Período según el tipo */}
@@ -330,7 +360,7 @@ export function PagoFormDialog({
                 ) : loadingReservas ? (
                   <option value={0} disabled>Consultando reservas del usuario…</option>
                 ) : reservasUsuario.length === 0 ? (
-                  <option value={0} disabled>El usuario no tiene reservas registradas</option>
+                  <option value={0} disabled>El usuario no tiene reservas con pago pendiente</option>
                 ) : (
                   <option value={0} disabled>Selecciona una reserva…</option>
                 )}
@@ -347,7 +377,7 @@ export function PagoFormDialog({
               {idUsuario > 0 && !loadingReservas && reservasUsuario.length === 0 && (
                 <p className="mt-1 text-[10px] text-amber-700 font-medium flex items-center gap-1">
                   <AlertCircle className="h-3 w-3 shrink-0" />
-                  No se encontraron reservas para el usuario seleccionado.
+                  No se encontraron reservas con un pago pendiente para el usuario seleccionado.
                 </p>
               )}
             </div>
@@ -366,6 +396,48 @@ export function PagoFormDialog({
             </div>
           )}
 
+          {tipoPago === 'RESERVA' && (
+            <div>
+              <label className={labelClassName}>Puntos a usar (1 punto = $1)</label>
+              <input
+                type="number"
+                min={0}
+                max={maxPuntosAplicables}
+                step={1}
+                value={puntosAplicados}
+                onChange={(event) => setPuntosUsados(Math.max(0, Math.min(maxPuntosAplicables, Math.floor(Number(event.target.value) || 0))))}
+                disabled={!reservaSeleccionada || maxPuntosAplicables === 0}
+                className={inputClass()}
+              />
+              <p className="mt-1 text-[10px] text-gray-500">
+                {!idUsuario
+                  ? 'Selecciona un usuario para consultar sus puntos.'
+                  : saldoPuntosUsuario === null
+                    ? 'Consultando saldo de puntos…'
+                    : `Disponibles: ${puntosDisponibles} puntos.`}
+                {idUsuario && !reservaSeleccionada && ' Selecciona una reserva para aplicarlos.'}
+                {reservaSeleccionada && ` Máximo aplicable: ${maxPuntosAplicables}.`}
+              </p>
+            </div>
+          )}
+
+          {tipoPago === 'CUOTA_MEMBRESIA' && (
+            <div>
+              <label className={labelClassName}>Puntos a usar (1 punto = $1)</label>
+              <input
+                type="number"
+                min={0}
+                max={maxPuntosAplicables}
+                step={1}
+                value={puntosAplicados}
+                onChange={(event) => setPuntosUsados(Math.max(0, Math.min(maxPuntosAplicables, Math.floor(Number(event.target.value) || 0))))}
+                disabled={montoIngresado <= 0 || maxPuntosAplicables === 0}
+                className={inputClass()}
+              />
+              <p className="mt-1 text-[10px] text-gray-500">Disponibles: {puntosDisponibles} · Máximo aplicable: {maxPuntosAplicables}</p>
+            </div>
+          )}
+
           {/* Monto / Método */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -376,9 +448,16 @@ export function PagoFormDialog({
                 step="0.01"
                 placeholder="0.00"
                 {...register('montoPago')}
+                readOnly={tipoPago === 'RESERVA' && !!reservaSeleccionada}
                 className={inputClass(!!errors.montoPago)}
               />
               <FieldError message={errors.montoPago?.message} />
+              {tipoPago === 'RESERVA' && reservaSeleccionada && (
+                <p className="mt-1 text-[10px] text-gray-500">Importe a abonar: {formatMonto(Math.max(0, Number(reservaSeleccionada.montoReserva) - puntosAplicados))}</p>
+              )}
+              {tipoPago === 'CUOTA_MEMBRESIA' && puntosAplicados > 0 && (
+                <p className="mt-1 text-[10px] text-gray-500">Importe a abonar: {formatMonto(Math.max(0, montoIngresado - puntosAplicados))}</p>
+              )}
             </div>
 
             <div>
@@ -421,7 +500,7 @@ export function PagoFormDialog({
               variant="brand"
               size="sm"
               className="cursor-pointer"
-              disabled={isSubmitting || usuarios.length === 0}
+              disabled={isSubmitting}
             >
               {isSubmitting ? (
                 <>

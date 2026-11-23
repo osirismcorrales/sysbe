@@ -27,7 +27,7 @@ public class ReservaController {
 
     @GetMapping
     public ResponseEntity<Page<ReservaResponseDto>> listarTodas(
-            @PageableDefault(size = 10, sort = "fechaReserva", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10, sort = "fechaCreacion", direction = Sort.Direction.DESC) Pageable pageable) {
         return ResponseEntity.ok(reservaService.listarTodas(pageable));
     }
 

@@ -28,6 +28,7 @@ export interface Categoria {
   tipoSocio: string;
   vinculoUnse?: string;
   descuento?: number;
+  recargo?: number;
   cuotaMensual?: number;
   cuotaTrimestral?: number;
   cuotaAnual?: number;
@@ -100,7 +101,16 @@ export function normalizeUsuario(raw: any): UsuarioResponseDto {
     estado: raw.estado ?? 'ACTIVO',
     domicilio: raw.domicilio ?? '',
     rol: raw.rol ? { idRol: raw.rol.idRol ?? raw.rol.id ?? 0, nombreRol: raw.rol.nombreRol ?? raw.rol.nombre ?? '', desc: raw.rol.desc } : null,
-    categoria: raw.categoria ? { idCategoria: raw.categoria.idCategoria ?? raw.categoria.id ?? 0, tipoSocio: raw.categoria.tipoSocio ?? raw.categoria.nombre ?? '', vinculoUnse: raw.categoria.vinculoUnse, descuento: raw.categoria.descuento, cuotaMensual: raw.categoria.cuotaMensual, cuotaTrimestral: raw.categoria.cuotaTrimestral, cuotaAnual: raw.categoria.cuotaAnual } : null,
+    categoria: raw.categoria ? {
+      idCategoria: raw.categoria.idCategoria ?? raw.categoria.id ?? 0,
+      tipoSocio: raw.categoria.tipoSocio ?? raw.categoria.nombre ?? '',
+      vinculoUnse: raw.categoria.vinculoUnse,
+      descuento: Number(raw.categoria.descuento ?? raw.categoria.descuento_porcentaje ?? raw.categoria.descuentoPorcentaje ?? 0),
+      recargo: Number(raw.categoria.recargo ?? raw.categoria.recargo_porcentaje ?? raw.categoria.recargoPorcentaje ?? 0),
+      cuotaMensual: raw.categoria.cuotaMensual,
+      cuotaTrimestral: raw.categoria.cuotaTrimestral,
+      cuotaAnual: raw.categoria.cuotaAnual,
+    } : null,
   };
 }
 

@@ -17,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -267,6 +268,9 @@ public class ReservaServiceImpl implements ReservaService{
     @Override
     @Transactional(readOnly = true)
     public List<ReservaResponseDto> listarTodas() {
-        return reservaRepository.findAll().stream().map(reservaMapper::toResponseDto).toList();
+        return reservaRepository.findAll(Sort.by(Sort.Direction.DESC, "fechaCreacion"))
+                .stream()
+                .map(reservaMapper::toResponseDto)
+                .toList();
     }
 }

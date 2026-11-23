@@ -33,6 +33,7 @@ export interface SocioResponseDto {
   tipoSocio: string;
   vinculoUnse: string;
   descuentoPorcentaje: number;
+  recargoPorcentaje?: number;
 }
 
 export interface AsignarCategoriaRequestDto {
@@ -49,6 +50,7 @@ export interface CategoriaResponseDto {
   vinculoUnse: string | null;
   etiqueta: string;
   descuento: number;
+  recargo: number;
   cuotaMensual: number;
   cuotaTrimestral: number;
   cuotaAnual: number;
@@ -144,6 +146,7 @@ export function normalizeSocio(raw: any): SocioResponseDto {
     tipoSocio: raw.tipoSocio ?? raw.tipo_socio ?? '',
     vinculoUnse: raw.vinculoUnse ?? raw.vinculo_unse ?? '',
     descuentoPorcentaje: raw.descuentoPorcentaje ?? raw.descuento_porcentaje ?? raw.descuento ?? 0,
+    recargoPorcentaje: raw.recargoPorcentaje ?? raw.recargo_porcentaje ?? raw.recargo ?? 0,
   };
 }
 
@@ -222,7 +225,8 @@ export async function getCategorias(): Promise<CategoriaResponseDto[]> {
     tipoSocio: raw.tipoSocio ?? raw.tipo_socio ?? raw.nombre ?? '',
     vinculoUnse: raw.vinculoUnse ?? raw.vinculo_unse ?? null,
     etiqueta: raw.etiqueta ?? (raw.vinculoUnse ? `${raw.tipoSocio} · ${raw.vinculoUnse}` : raw.tipoSocio),
-    descuento: Number(raw.descuento ?? 0),
+    descuento: Number(raw.descuento ?? raw.descuento_porcentaje ?? raw.descuentoPorcentaje ?? 0),
+    recargo: Number(raw.recargo ?? raw.recargo_porcentaje ?? raw.recargoPorcentaje ?? 0),
     cuotaMensual: Number(raw.cuotaMensual ?? raw.cuota_mensual ?? 0),
     cuotaTrimestral: Number(raw.cuotaTrimestral ?? raw.cuota_trimestral ?? 0),
     cuotaAnual: Number(raw.cuotaAnual ?? raw.cuota_anual ?? 0),

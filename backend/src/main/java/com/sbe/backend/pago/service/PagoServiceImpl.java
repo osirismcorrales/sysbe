@@ -42,6 +42,14 @@ public class PagoServiceImpl implements PagoService {
         Pago pago = pagoMapper.toEntity(dto);
         pago.setUsuario(usuario);
 
+        int puntosUsados = dto.puntosUsados() != null ? dto.puntosUsados() : 0;
+        if (puntosUsados < 0) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Los puntos usados no pueden ser negativos");
+        }
+        if (puntosUsados > 0 && (usuario.getPuntosAc() == null || usuario.getPuntosAc() < puntosUsados)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No tienes suficientes puntos para este pago");
+        }
+
         // Validaciones según el tipo de pago
         if (dto.tipoPago() == TipoPago.RESERVA) {
             if (dto.idReserva() == null) {
@@ -57,12 +65,28 @@ public class PagoServiceImpl implements PagoService {
 
             pago.setReserva(reserva);
             pago.setPeriodo(null);
+
+            java.math.BigDecimal descuentoPuntos = java.math.BigDecimal.valueOf(puntosUsados);
+            java.math.BigDecimal montoEsperado = reserva.getMonto().subtract(descuentoPuntos);
+            if (montoEsperado.signum() < 0 || dto.montoPago().compareTo(montoEsperado) != 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El monto del pago no coincide con los puntos aplicados");
+            }
+            pago.setPuntosUsados(puntosUsados);
         } else if (dto.tipoPago() == TipoPago.CUOTA_MEMBRESIA) {
+            if (dto.montoPago().add(java.math.BigDecimal.valueOf(puntosUsados)).signum() <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "El monto del pago debe ser mayor a 0");
+            }
             if (dto.periodo() == null || dto.periodo().isBlank()) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Para pagos de CUOTA_MEMBRESIA, el periodo es obligatorio (ej. 2026-11)");
             }
             pago.setReserva(null);
             pago.setPeriodo(dto.periodo().trim());
+            pago.setPuntosUsados(puntosUsados);
+        }
+
+        if (puntosUsados > 0) {
+            usuario.setPuntosAc(usuario.getPuntosAc() - puntosUsados);
+            usuarioRepository.save(usuario);
         }
 
         // Asignar registrado_por si hay usuario autenticado

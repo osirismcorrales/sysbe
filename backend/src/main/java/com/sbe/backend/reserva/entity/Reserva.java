@@ -7,6 +7,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 
 @Entity
@@ -25,6 +26,9 @@ public class Reserva {
 
     @Column(name = "fecha_reserva", nullable = false)
     private LocalDate fechaReserva;
+
+    @Column(name = "fecha_creacion")
+    private LocalDateTime fechaCreacion;
 
     @Column(name = "horario_inicio", nullable = false)
     private LocalTime horarioInicio;
@@ -46,5 +50,12 @@ public class Reserva {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "id_instalacion", nullable = false)
     private Instalacion instalacion;
+
+    @PrePersist
+    public void prePersist() {
+        if (this.fechaCreacion == null) {
+            this.fechaCreacion = LocalDateTime.now();
+        }
+    }
 }
 

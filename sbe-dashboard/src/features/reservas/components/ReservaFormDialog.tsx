@@ -15,12 +15,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '../../../components/ui/Button';
 import { DatePickerCalendar } from '../../../components/ui/DatePickerCalendar';
 import { FieldError } from '../../../components/ui/FieldError';
-import { CalendarDays, Loader2, AlertCircle, Clock, CheckCircle2 } from 'lucide-react';
+import { CalendarDays, Loader2, AlertCircle, Clock, CheckCircle2, ChevronDown, Wallet } from 'lucide-react';
 import { cn } from '../../../lib/utils';
 import { handleApiFormError } from '../../../lib/handleApiFormError';
 import type { ReservaResponseDto, ReservaRequestDto, ReprogramarReservaRequestDto } from '../services/reservasApi';
 import type { InstalacionResponseDto } from '../../instalaciones/services/instalacionesApi';
 import { UsuarioSearchSelect } from '../../usuarios/components/UsuarioSearchSelect';
+import { getUsuarioById, type UsuarioResponseDto } from '../../usuarios/services/usuariosApi';
 import {
   listarPlantillas,
   consultarDisponibilidad,
@@ -31,6 +32,12 @@ import {
   type BloqueDto,
 } from '../../instalaciones/services/plantillasHorarioApi';
 import {
+  METODOS_PAGO,
+  METODO_PAGO_LABELS,
+  ESTADO_PAGO_LABELS,
+  type MetodoPago,
+} from '../../pagos/types/pagos.types';
+import {
   reservaRequestSchema,
   reprogramarReservaSchema,
   calcMax2Months,
@@ -39,13 +46,19 @@ import {
 
 // ─── Props ──────────────────────────────────────────────────────────────────
 
+export interface PagoCreacionData {
+  metodoPago: MetodoPago;
+  estadoPago: 'APROBADO';
+  puntosUsados: number;
+}
+
 interface ReservaFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   mode: 'crear' | 'reprogramar';
   reserva?: ReservaResponseDto | null;
   instalaciones: InstalacionResponseDto[];
-  onCrear: (body: ReservaRequestDto) => Promise<ReservaResponseDto>;
+  onCrear: (body: ReservaRequestDto, pagoData?: PagoCreacionData) => Promise<ReservaResponseDto>;
   onReprogramar: (idReserva: number, body: ReprogramarReservaRequestDto) => Promise<ReservaResponseDto>;
 }
 
@@ -208,6 +221,62 @@ export function ReservaFormDialog({
 
   const duracionMinutos = selectedInstalacion?.duracionMinutos ?? 60;
 
+  const idUsuario = mode === 'crear' ? (watch('idUsuario') || 0) : (reserva?.idUsuario ?? 0);
+  const [usuarioSeleccionado, setUsuarioSeleccionado] = useState<UsuarioResponseDto | null>(null);
+
+  // Estado del acordeón de pago integrado
+  const [pagoAccordionOpen, setPagoAccordionOpen] = useState(true);
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>('EFECTIVO');
+  const [puntosUsados, setPuntosUsados] = useState(0);
+
+  useEffect(() => {
+    const uid = Number(idUsuario);
+    if (!uid) {
+      setUsuarioSeleccionado(null);
+      return;
+    }
+    let cancelled = false;
+    getUsuarioById(uid)
+      .then((u) => {
+        if (!cancelled) setUsuarioSeleccionado(u);
+      })
+      .catch(() => {
+        if (!cancelled) setUsuarioSeleccionado(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [idUsuario]);
+
+  const tarifaCalculada = useMemo(() => {
+    const base = Number(selectedInstalacion?.precioBase ?? 0);
+    const cat = usuarioSeleccionado?.categoria;
+    const descPct = Number(cat?.descuento ?? 0);
+    const recPct = Number(cat?.recargo ?? 0);
+
+    let montoFinal = base;
+    let ajuste = 0;
+    if (recPct > 0) {
+      ajuste = Math.round((base * recPct) / 100);
+      montoFinal = base + ajuste;
+    } else if (descPct > 0) {
+      ajuste = Math.round((base * descPct) / 100);
+      montoFinal = Math.max(0, base - ajuste);
+    }
+    return {
+      base,
+      descPct,
+      recPct,
+      ajuste,
+      montoFinal,
+    };
+  }, [selectedInstalacion, usuarioSeleccionado]);
+
+  const maxPuntosAplicables = Math.min(
+    usuarioSeleccionado?.puntosAc ?? 0,
+    Math.floor(tarifaCalculada.montoFinal)
+  );
+
   // Umbral exacto: ahora + 48 horas corridas
   const min48h = useMemo(() => calcMin48h(), []);
   const minDate = useMemo(() => dateToLocalISO(min48h), [min48h]);
@@ -260,6 +329,9 @@ export function ReservaFormDialog({
   useEffect(() => {
     if (open) {
       setFormError(null);
+      setPuntosUsados(0);
+      setPagoAccordionOpen(true);
+      setMetodoPago('EFECTIVO');
       if (mode === 'reprogramar' && reserva) {
         reset({
           fechaReserva: reserva.fechaReserva,
@@ -350,13 +422,20 @@ export function ReservaFormDialog({
           horarioFin: data.horarioFin,
         });
       } else {
-        await onCrear({
-          fechaReserva: data.fechaReserva,
-          horarioInicio: data.horarioInicio,
-          horarioFin: data.horarioFin,
-          idUsuario: Number(data.idUsuario),
-          idInstalacion: Number(data.idInstalacion),
-        });
+        await onCrear(
+          {
+            fechaReserva: data.fechaReserva,
+            horarioInicio: data.horarioInicio,
+            horarioFin: data.horarioFin,
+            idUsuario: Number(data.idUsuario),
+            idInstalacion: Number(data.idInstalacion),
+          },
+          {
+            metodoPago,
+            estadoPago: 'APROBADO',
+            puntosUsados: Math.min(puntosUsados, maxPuntosAplicables),
+          }
+        );
       }
       onOpenChange(false);
     } catch (err) {
@@ -586,6 +665,151 @@ export function ReservaFormDialog({
                 )}
               />
               <FieldError message={errors.idUsuario?.message} />
+            </div>
+          )}
+
+          {/* Mostrador de Tarifa de Reserva: Base, Descuento, Recargo y Total */}
+          {selectedInstalacion && (
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                <span>Tarifa Estimada de la Reserva</span>
+                <span className="text-[10px] font-normal normal-case text-gray-500">
+                  {selectedInstalacion.nombre}
+                </span>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                  <span className="text-gray-400 block text-[10px] font-medium">Precio Base</span>
+                  <span className="font-bold text-gray-800 text-xs">
+                    ${tarifaCalculada.base.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                  <span className="text-gray-400 block text-[10px] font-medium">Descuento</span>
+                  <span
+                    className={`font-bold text-xs ${
+                      tarifaCalculada.descPct > 0 ? 'text-green-600' : 'text-gray-500'
+                    }`}
+                  >
+                    {tarifaCalculada.descPct > 0 ? `-${tarifaCalculada.descPct}%` : 'Sin descuento'}
+                  </span>
+                </div>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                  <span className="text-gray-400 block text-[10px] font-medium">Recargo</span>
+                  <span
+                    className={`font-bold text-xs ${
+                      tarifaCalculada.recPct > 0 ? 'text-amber-600' : 'text-gray-500'
+                    }`}
+                  >
+                    {tarifaCalculada.recPct > 0 ? `+${tarifaCalculada.recPct}%` : 'Sin recargo'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 text-xs font-semibold">
+                <span className="text-gray-600">
+                  {usuarioSeleccionado ? (
+                    <>
+                      Usuario:{' '}
+                      <span className="font-bold text-gray-900">
+                        {usuarioSeleccionado.nombreCompleto} (
+                        {usuarioSeleccionado.categoria?.tipoSocio === 'NO_SOCIO'
+                          ? 'No Socio'
+                          : usuarioSeleccionado.categoria?.tipoSocio === 'SOCIO_INTERNO'
+                          ? 'Socio Interno'
+                          : usuarioSeleccionado.categoria?.tipoSocio === 'SOCIO_EXTERNO'
+                          ? 'Socio Externo'
+                          : usuarioSeleccionado.categoria?.tipoSocio ?? 'Sin categoría'}
+                        )
+                      </span>
+                    </>
+                  ) : (
+                    'Tarifa estándar (seleccione un usuario)'
+                  )}
+                </span>
+                <span className="text-sm font-black text-emerald-600">
+                  ${tarifaCalculada.montoFinal.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Acordeón: Registro de Pago Asociado (reutiliza los controles de pago) */}
+          {mode === 'crear' && (
+            <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-2xs transition-all">
+              <button
+                type="button"
+                onClick={() => setPagoAccordionOpen((prev) => !prev)}
+                className="w-full flex items-center justify-between px-3.5 py-2.5 bg-slate-50/80 hover:bg-slate-100/80 cursor-pointer transition-colors text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4 text-primary shrink-0" />
+                  <span className="text-xs font-bold text-gray-900">
+                    Registro de Pago Asociado
+                  </span>
+                  <span
+                    className={cn(
+                      'text-[10px] font-semibold px-2 py-0.5 rounded-full',
+                      'bg-emerald-100 text-emerald-700'
+                    )}
+                  >
+                    {ESTADO_PAGO_LABELS.APROBADO}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={cn(
+                    'h-4 w-4 text-gray-500 transition-transform duration-200',
+                    pagoAccordionOpen ? 'rotate-180' : ''
+                  )}
+                />
+              </button>
+
+              {pagoAccordionOpen && (
+                <div className="p-3.5 space-y-3 border-t border-slate-200/80 bg-white">
+                  <p className="text-[11px] text-gray-500">
+                    Al crear la reserva se generará automáticamente el comprobante de pago vinculado con el monto de la tarifa.
+                  </p>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                      <label className={labelClassName}>Método de pago</label>
+                      <select
+                        value={metodoPago}
+                        onChange={(e) => setMetodoPago(e.target.value as MetodoPago)}
+                        className={selectClass(false)}
+                      >
+                        {METODOS_PAGO.map((metodo) => (
+                          <option key={metodo} value={metodo}>
+                            {METODO_PAGO_LABELS[metodo]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                  </div>
+
+                  <div>
+                    <label className={labelClassName}>Puntos a usar (1 punto = $1)</label>
+                    <input
+                      type="number"
+                      min={0}
+                      max={maxPuntosAplicables}
+                      step={1}
+                      value={Math.min(puntosUsados, maxPuntosAplicables)}
+                      onChange={(event) => setPuntosUsados(Math.max(0, Math.min(maxPuntosAplicables, Math.floor(Number(event.target.value) || 0))))}
+                      disabled={maxPuntosAplicables === 0}
+                      className={inputClass(false)}
+                    />
+                    <p className="mt-1 text-[10px] text-gray-500">Disponibles: {usuarioSeleccionado?.puntosAc ?? 0} · Máximo aplicable: {maxPuntosAplicables}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 rounded-lg bg-slate-50 border border-slate-200/60 text-xs">
+                    <span className="text-gray-500 font-medium">Monto del pago a registrar:</span>
+                    <span className="font-bold text-gray-900">
+                      ${(tarifaCalculada.montoFinal - Math.min(puntosUsados, maxPuntosAplicables)).toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 

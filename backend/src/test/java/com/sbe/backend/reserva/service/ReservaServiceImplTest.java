@@ -23,6 +23,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.Optional;
 
@@ -70,7 +71,8 @@ class ReservaServiceImplTest {
         categoriaNoSocio = Categoria.builder()
                 .idCategoria(2)
                 .tipoSocio("NO_SOCIO")
-                .descuento(BigDecimal.valueOf(50)) // 50% recargo
+                .recargo(BigDecimal.valueOf(50)) // 50% recargo
+                .descuento(BigDecimal.ZERO)
                 .build();
 
         categoriaExterno = Categoria.builder()
@@ -127,6 +129,7 @@ class ReservaServiceImplTest {
         reservaResponseDto = new ReservaResponseDto(
                 100L,
                 fechaFutura,
+                LocalDateTime.of(2026, 11, 1, 10, 0),
                 inicio,
                 fin,
                 EstadoReserva.RESERVADA,
@@ -193,6 +196,7 @@ class ReservaServiceImplTest {
         ReservaResponseDto dtoNoSocio = new ReservaResponseDto(
                 101L,
                 reservaRequestDto.fechaReserva(),
+                LocalDateTime.of(2026, 11, 1, 10, 0),
                 reservaRequestDto.horarioInicio(),
                 reservaRequestDto.horarioFin(),
                 EstadoReserva.RESERVADA,

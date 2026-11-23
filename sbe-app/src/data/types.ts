@@ -384,7 +384,7 @@ export type Payment = {
 // ── DTOs de Pagos (Spring Boot /api/pagos) ──────────────────────────────────
 
 export type EstadoPago = "PENDIENTE" | "APROBADO" | "RECHAZADO" | "ANULADO";
-export type MetodoPago = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "DEBITO" | "MERCADO_PAGO";
+export type MetodoPago = "EFECTIVO" | "TRANSFERENCIA";
 export type TipoPago = "RESERVA" | "CUOTA_MEMBRESIA";
 
 /**
@@ -396,6 +396,7 @@ export interface PagoRequestDto {
   tipoPago: TipoPago;
   periodo?: string | null;
   montoPago: number;
+  puntosUsados?: number;
   metodoPago: MetodoPago;
   estadoPago?: EstadoPago | null;
 }
@@ -408,10 +409,12 @@ export interface PagoResponseDto {
   idUsuario: number;
   dniUsuario?: string;
   nombreUsuario?: string;
+  puntosSaldoUsuario?: number | null;
   idReserva?: number | null;
   tipoPago: TipoPago;
   periodo?: string | null;
   montoPago: number;
+  puntosUsados?: number;
   metodoPago: MetodoPago;
   estadoPago: EstadoPago;
   fechaCreacion: string; // LocalDateTime → ISO string
@@ -437,9 +440,6 @@ export function mapPagoToPayment(dto: PagoResponseDto): Payment {
   const metodoPagoLabel: Record<MetodoPago, string> = {
     EFECTIVO: "Efectivo",
     TRANSFERENCIA: "Transferencia",
-    TARJETA: "Tarjeta",
-    DEBITO: "Débito",
-    MERCADO_PAGO: "Mercado Pago",
   };
 
   const concept = conceptMap[dto.tipoPago] ?? "otro";

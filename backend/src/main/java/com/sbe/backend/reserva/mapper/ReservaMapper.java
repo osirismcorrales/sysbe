@@ -23,6 +23,7 @@ public class ReservaMapper {
         return new ReservaResponseDto(
                 reserva.getIdReserva(),
                 reserva.getFechaReserva(),
+                reserva.getFechaCreacion(),
                 reserva.getHorarioInicio(),
                 reserva.getHorarioFin(),
                 reserva.getEstado(),

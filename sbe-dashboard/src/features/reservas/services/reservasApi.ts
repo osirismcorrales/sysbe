@@ -29,6 +29,7 @@ export type EstadoReserva =
 export interface ReservaResponseDto {
   idReserva: number;
   fechaReserva: string;      // "YYYY-MM-DD"
+  fechaCreacion: string | null; // "YYYY-MM-DDTHH:mm:ss"
   horarioInicio: string;     // "HH:mm" o "HH:mm:ss"
   horarioFin: string;        // "HH:mm" o "HH:mm:ss"
   estadoReserva: EstadoReserva;
@@ -58,6 +59,7 @@ export function normalizeReserva(raw: any): ReservaResponseDto {
     return {
       idReserva: 0,
       fechaReserva: '',
+      fechaCreacion: null,
       horarioInicio: '',
       horarioFin: '',
       estadoReserva: 'RESERVADA',
@@ -69,6 +71,7 @@ export function normalizeReserva(raw: any): ReservaResponseDto {
   return {
     idReserva: raw.idReserva ?? raw.id_reserva ?? raw.id ?? 0,
     fechaReserva: raw.fechaReserva ?? raw.fecha_reserva ?? '',
+    fechaCreacion: raw.fechaCreacion ?? raw.fecha_creacion ?? null,
     horarioInicio: raw.horarioInicio ?? raw.horario_inicio ?? '',
     horarioFin: raw.horarioFin ?? raw.horario_fin ?? '',
     estadoReserva: raw.estadoReserva ?? raw.estado_reserva ?? raw.estado ?? 'RESERVADA',
@@ -139,7 +142,7 @@ export async function getReservas(
  */
 export async function getAllReservas(userIds: number[] = []): Promise<ReservaResponseDto[]> {
   try {
-    const res = await getReservasPaginadas({ size: 200, sort: 'fechaReserva,desc' });
+    const res = await getReservasPaginadas({ size: 200, sort: 'fechaCreacion,desc' });
     if (res.content.length > 0 || userIds.length === 0) {
       return res.content;
     }

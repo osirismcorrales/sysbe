@@ -8,12 +8,7 @@
 
 export type EstadoPago = 'PENDIENTE' | 'APROBADO' | 'RECHAZADO' | 'ANULADO';
 
-export type MetodoPago =
-  | 'EFECTIVO'
-  | 'TRANSFERENCIA'
-  | 'TARJETA'
-  | 'DEBITO'
-  | 'MERCADO_PAGO';
+export type MetodoPago = 'EFECTIVO' | 'TRANSFERENCIA';
 
 export type TipoPago = 'RESERVA' | 'CUOTA_MEMBRESIA';
 
@@ -24,10 +19,12 @@ export interface PagoResponseDto {
   idUsuario: number;
   dniUsuario: string;
   nombreUsuario: string;
+  puntosSaldoUsuario?: number | null;
   idReserva: number | null;
   tipoPago: TipoPago;
   periodo: string | null;
   montoPago: number;
+  puntosUsados: number;
   metodoPago: MetodoPago;
   estadoPago: EstadoPago;
   fechaCreacion: string;
@@ -42,6 +39,7 @@ export interface PagoRequestDto {
   tipoPago: TipoPago;
   periodo?: string | null;
   montoPago: number;
+  puntosUsados?: number;
   metodoPago: MetodoPago;
   estadoPago?: EstadoPago;
 }
@@ -76,9 +74,6 @@ export const TIPO_PAGO_LABELS: Record<TipoPago, string> = {
 export const METODO_PAGO_LABELS: Record<MetodoPago, string> = {
   EFECTIVO: 'Efectivo',
   TRANSFERENCIA: 'Transferencia',
-  TARJETA: 'Tarjeta',
-  DEBITO: 'Débito',
-  MERCADO_PAGO: 'Mercado Pago',
 };
 
 export const ESTADOS_PAGO: EstadoPago[] = [
@@ -90,10 +85,4 @@ export const ESTADOS_PAGO: EstadoPago[] = [
 
 export const TIPOS_PAGO: TipoPago[] = ['RESERVA', 'CUOTA_MEMBRESIA'];
 
-export const METODOS_PAGO: MetodoPago[] = [
-  'EFECTIVO',
-  'TRANSFERENCIA',
-  'TARJETA',
-  'DEBITO',
-  'MERCADO_PAGO',
-];
+export const METODOS_PAGO: MetodoPago[] = ['EFECTIVO', 'TRANSFERENCIA'];

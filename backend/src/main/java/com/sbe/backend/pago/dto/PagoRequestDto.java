@@ -4,7 +4,7 @@ import com.sbe.backend.pago.entity.EstadoPago;
 import com.sbe.backend.pago.entity.MetodoPago;
 import com.sbe.backend.pago.entity.TipoPago;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.PositiveOrZero;
 
 import java.math.BigDecimal;
 
@@ -21,8 +21,10 @@ public record PagoRequestDto(
         String periodo,
 
         @NotNull(message = "El monto del pago es obligatorio")
-        @Positive(message = "El monto debe ser mayor a 0")
+        @PositiveOrZero(message = "El monto no puede ser negativo")
         BigDecimal montoPago,
+
+        Integer puntosUsados,
 
         @NotNull(message = "El método de pago es obligatorio")
         MetodoPago metodoPago,

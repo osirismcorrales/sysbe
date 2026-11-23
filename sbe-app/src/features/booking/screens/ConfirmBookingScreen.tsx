@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -35,29 +36,11 @@ interface MetodoPagoItem {
 
 const METODOS_PAGO: MetodoPagoItem[] = [
   {
-    id: "MERCADO_PAGO",
-    nombre: "Mercado Pago",
-    descripcion: "Dinero en cuenta, tarjetas o saldo digital",
-    icono: "phone-portrait-outline",
-    badge: "Recomendado",
-  },
-  {
-    id: "TARJETA",
-    nombre: "Tarjeta de Crédito",
-    descripcion: "Acreditación online con tarjeta de crédito",
-    icono: "card-outline",
-  },
-  {
-    id: "DEBITO",
-    nombre: "Tarjeta de Débito",
-    descripcion: "Débito bancario inmediato",
-    icono: "card-outline",
-  },
-  {
     id: "TRANSFERENCIA",
     nombre: "Transferencia Bancaria",
     descripcion: "Transferí al alias del club con tu DNI",
     icono: "swap-horizontal-outline",
+    badge: "Recomendado",
   },
   {
     id: "EFECTIVO",
@@ -69,9 +52,11 @@ const METODOS_PAGO: MetodoPagoItem[] = [
 
 export default function ConfirmBookingScreen({ navigation, route }: Props) {
   const { serviceId, serviceName, date, time, horaInicio, horaFin, price } = route.params;
-  const { user, addReservation } = useApp();
+  const { user, addReservation, updateUser, refreshUser } = useApp();
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [selectedMetodo, setSelectedMetodo] = useState<MetodoPago>("MERCADO_PAGO");
+  const [selectedMetodo, setSelectedMetodo] = useState<MetodoPago>("TRANSFERENCIA");
+  const [puntosInput, setPuntosInput] = useState("0");
+  const precioBase = Number.isFinite(Number(price)) ? Number(price) : 0;
 
   const formattedDate = (() => {
     const d = new Date(date + "T12:00:00");
@@ -89,21 +74,31 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
 
   let montoVariacion = 0;
   let tipoVariacion: "recargo" | "descuento" | "ninguno" = "ninguno";
-  let totalEstimado = price;
+  let totalEstimado = precioBase;
 
   if (recargoPct > 0) {
     tipoVariacion = "recargo";
-    montoVariacion = Math.round((price * recargoPct) / 100);
-    totalEstimado = price + montoVariacion;
+    montoVariacion = Math.round((precioBase * recargoPct) / 100);
+    totalEstimado = precioBase + montoVariacion;
   } else if (descuentoPct > 0) {
     tipoVariacion = "descuento";
-    montoVariacion = Math.round((price * descuentoPct) / 100);
-    totalEstimado = Math.max(0, price - montoVariacion);
+    montoVariacion = Math.round((precioBase * descuentoPct) / 100);
+    totalEstimado = Math.max(0, precioBase - montoVariacion);
   } else {
     tipoVariacion = "ninguno";
     montoVariacion = 0;
-    totalEstimado = price;
+    totalEstimado = precioBase;
   }
+
+  const totalSeguro = Number.isFinite(totalEstimado) ? Math.max(0, totalEstimado) : 0;
+  const puntosDisponibles = Number.isFinite(Number(user.puntosAcumulados))
+    ? Math.max(0, Math.floor(Number(user.puntosAcumulados)))
+    : 0;
+  const maxPuntosAplicables = Math.min(puntosDisponibles, Math.floor(totalSeguro));
+  const parsedPuntos = Number.parseInt(puntosInput, 10);
+  const puntosUsados = Number.isFinite(parsedPuntos) ? Math.max(0, parsedPuntos) : 0;
+  const puntosAplicados = Math.min(puntosUsados, maxPuntosAplicables);
+  const montoNeto = Math.max(0, totalSeguro - puntosAplicados);
 
   const handleConfirmReservation = async () => {
     setIsSubmitting(true);
@@ -153,21 +148,27 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         idInstalacion: Number(serviceId),
       });
 
-      const montoAPagar = responseDto.montoReserva != null
-        ? Number(responseDto.montoReserva)
-        : totalEstimado;
+      const montoBackend = Number(responseDto.montoReserva);
+      const montoAPagar = responseDto.montoReserva != null && Number.isFinite(montoBackend)
+        ? montoBackend
+        : totalSeguro;
+      const puntosUsadosReales = Math.min(puntosAplicados, puntosDisponibles, Math.floor(montoAPagar));
+      const montoNetoReal = Math.max(0, montoAPagar - puntosUsadosReales);
 
       // 3. Crear el pago en el backend: POST /api/pagos
       let pagoExitoso = false;
+      let puntosSaldoDevuelto: number | null = null;
       try {
-        await paymentsService.crearPago({
+        const pagoCreado = await paymentsService.crearPago({
           idUsuario: Number(user.id) || 1,
           idReserva: responseDto.idReserva,
           tipoPago: "RESERVA",
-          montoPago: montoAPagar,
+          montoPago: montoNetoReal,
+          puntosUsados: puntosUsadosReales,
           metodoPago: selectedMetodo,
           estadoPago: selectedMetodo === "EFECTIVO" ? "PENDIENTE" : "APROBADO",
         });
+        puntosSaldoDevuelto = pagoCreado.puntosSaldoUsuario ?? null;
         pagoExitoso = true;
       } catch (pagoErr: any) {
         if (__DEV__) {
@@ -188,13 +189,19 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         time: `${formatHora(responseDto.horarioInicio)} - ${formatHora(responseDto.horarioFin)}`,
         price: montoAPagar,
         discount: tipoVariacion === "descuento" ? montoVariacion : 0,
-        pointsUsed: 0,
+        pointsUsed: puntosUsadosReales,
         pointsEarned: 0,
         status: "reservado",
         createdAt: new Date().toISOString().split("T")[0],
       };
 
       addReservation(newReservation);
+      if (pagoExitoso && puntosUsadosReales > 0) {
+        await updateUser({
+          puntosAcumulados: puntosSaldoDevuelto ?? Math.max(0, puntosDisponibles - puntosUsadosReales),
+        });
+        await refreshUser();
+      }
 
       // 6. Notificar confirmación al usuario
       const metodoObj = METODOS_PAGO.find((m) => m.id === selectedMetodo);
@@ -206,7 +213,8 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
 
       const alertMessage = pagoExitoso
         ? `${serviceName}\n${formattedDate} · ${time} hs\n\n` +
-          `Monto: $${montoAPagar.toLocaleString("es-AR")}\n` +
+          `Monto: $${montoNetoReal.toLocaleString("es-AR")}\n` +
+          (puntosUsadosReales > 0 ? `Puntos usados: ${puntosUsadosReales}\n` : "") +
           `Medio de pago: ${metodoNombre}\n` +
           `${estadoTexto}\n\n` +
           `Tu turno y comprobante de pago quedaron registrados en el sistema.`
@@ -318,7 +326,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Arancel base</Text>
-            <Text style={styles.detailValue}>${price.toLocaleString("es-AR")}</Text>
+            <Text style={styles.detailValue}>${precioBase.toLocaleString("es-AR")}</Text>
           </View>
 
           {tipoVariacion === "recargo" && (
@@ -359,9 +367,33 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
           <View style={styles.detailRow}>
             <Text style={styles.totalLabel}>Total a abonar</Text>
             <Text style={styles.totalValue}>
-              ${totalEstimado.toLocaleString("es-AR")}
+              ${montoNeto.toLocaleString("es-AR")}
             </Text>
           </View>
+        </View>
+
+        <View style={styles.detailCard}>
+          <Text style={styles.detailTitle}>Usar puntos</Text>
+          <Text style={styles.paymentMethodSubtitle}>1 punto = $1 · Disponibles: {user.puntosAcumulados || 0}</Text>
+          <TextInput
+            value={puntosInput}
+            onChangeText={(value) => {
+              const soloDigitos = value.replace(/\D/g, "");
+              const puntos = soloDigitos ? Number.parseInt(soloDigitos, 10) : 0;
+              setPuntosInput(String(Math.max(0, Math.min(maxPuntosAplicables, puntos))));
+            }}
+            keyboardType="number-pad"
+            editable={maxPuntosAplicables > 0}
+            placeholder="0"
+            style={styles.pointsInput}
+          />
+          <Text style={styles.pointsHint}>Máximo aplicable: {maxPuntosAplicables} puntos</Text>
+          {puntosAplicados > 0 && (
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Descuento por puntos</Text>
+              <Text style={[styles.detailValue, { color: Colors.success }]}>-${puntosAplicados.toLocaleString("es-AR")}</Text>
+            </View>
+          )}
         </View>
 
         {/* Selección interactiva de Medios de Pago */}
@@ -432,7 +464,7 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
         <View style={styles.noticeCard}>
           <Ionicons name="shield-checkmark-outline" size={20} color={Colors.info} />
           <Text style={styles.noticeText}>
-            Al confirmar, el turno quedará reservado a tu nombre en SYSBE y el pago se registrará automáticamente en tu historial.
+            Al confirmar, el turno quedará reservado a tu nombre en SYSBE y el pago se registrará automáticamente en tu historial. Los puntos elegidos se descontarán de tu saldo.
           </Text>
         </View>
       </ScrollView>
@@ -457,8 +489,8 @@ export default function ConfirmBookingScreen({ navigation, route }: Props) {
               />
               <Text style={styles.confirmBtnText}>
                 {selectedMetodo === "EFECTIVO"
-                  ? `Reservar y pagar en caja ($${totalEstimado.toLocaleString("es-AR")})`
-                  : `Confirmar y pagar $${totalEstimado.toLocaleString("es-AR")}`}
+                  ? `Reservar y pagar en caja ($${montoNeto.toLocaleString("es-AR")})`
+                  : `Confirmar y pagar $${montoNeto.toLocaleString("es-AR")}`}
               </Text>
             </>
           )}
@@ -580,6 +612,22 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.lg,
     fontWeight: Typography.fontWeight.bold,
     color: Colors.primary,
+  },
+  pointsInput: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.md,
+    backgroundColor: Colors.surface,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    color: Colors.textPrimary,
+    fontSize: Typography.fontSize.base,
+    marginTop: Spacing.sm,
+  },
+  pointsHint: {
+    color: Colors.textSecondary,
+    fontSize: Typography.fontSize.xs,
+    marginTop: Spacing.xs,
   },
 
   noticeCard: {

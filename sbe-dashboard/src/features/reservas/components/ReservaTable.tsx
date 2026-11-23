@@ -45,6 +45,14 @@ function formatHora(hora: string): string {
   return hora.substring(0, 5);
 }
 
+function formatFechaHora(fecha: string | null): string {
+  if (!fecha) return '—';
+  const [soloFecha, horaCompleta] = fecha.split('T');
+  const fechaFormateada = formatFecha(soloFecha);
+  const hora = horaCompleta ? horaCompleta.substring(0, 5) : '';
+  return hora ? `${fechaFormateada} ${hora}` : fechaFormateada;
+}
+
 const estadoConfig: Record<EstadoReserva, { label: string; variant: 'success' | 'destructive' | 'secondary' | 'warning' | 'info' }> = {
   RESERVADA: { label: 'Reservada', variant: 'success' },
   CANCELADA: { label: 'Cancelada', variant: 'destructive' },
@@ -163,8 +171,27 @@ export function ReservaTable({
                 </div>
                 <div className="col-span-2 flex items-center justify-between pt-1">
                   <span className="text-[10px] text-gray-400 font-medium">Monto total:</span>
-                  <span className="text-xs font-black text-emerald-600">
-                    ${reserva.montoReserva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  <div className="text-right">
+                    <span className="text-xs font-black text-emerald-600">
+                      ${reserva.montoReserva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                    </span>
+                    {Number(usuario?.categoria?.recargo) > 0 ? (
+                      <span className="text-[9px] font-semibold text-amber-600 block">
+                        +{usuario?.categoria?.recargo}% recargo
+                      </span>
+                    ) : Number(usuario?.categoria?.descuento) > 0 ? (
+                      <span className="text-[9px] font-semibold text-green-600 block">
+                        -{usuario?.categoria?.descuento}% desc.
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-gray-400 block">Sin descuento</span>
+                    )}
+                  </div>
+                </div>
+                <div className="col-span-2 flex items-center justify-between pt-1 border-t border-gray-100">
+                  <span className="text-[10px] text-gray-400 font-medium">Creada:</span>
+                  <span className="text-[10px] font-semibold text-gray-600">
+                    {formatFechaHora(reserva.fechaCreacion)}
                   </span>
                 </div>
                 <div className="col-span-2 flex items-center justify-between pt-1 border-t border-gray-100">
@@ -250,6 +277,7 @@ export function ReservaTable({
               <th className="py-2.5 px-3">Usuario</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-24">Fecha</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-28">Horario</th>
+              <th className="py-2.5 px-3 whitespace-nowrap w-32">Creación</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-24">Monto</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-32">Pago</th>
               <th className="py-2.5 px-3 whitespace-nowrap w-24">Estado</th>
@@ -299,9 +327,25 @@ export function ReservaTable({
                     </span>
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
+                    <span className="font-medium text-gray-600 text-[11px]">
+                      {formatFechaHora(reserva.fechaCreacion)}
+                    </span>
+                  </td>
+                  <td className="py-2.5 px-3 whitespace-nowrap">
                     <span className="font-bold text-emerald-600 text-xs">
                       ${reserva.montoReserva.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
                     </span>
+                    {Number(usuario?.categoria?.recargo) > 0 ? (
+                      <span className="text-[9px] font-semibold text-amber-600 block">
+                        +{usuario?.categoria?.recargo}% recargo
+                      </span>
+                    ) : Number(usuario?.categoria?.descuento) > 0 ? (
+                      <span className="text-[9px] font-semibold text-green-600 block">
+                        -{usuario?.categoria?.descuento}% desc.
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-gray-400 block">Sin descuento</span>
+                    )}
                   </td>
                   <td className="py-2.5 px-3 whitespace-nowrap">
                     {pago ? (

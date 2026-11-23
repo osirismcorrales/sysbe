@@ -99,11 +99,30 @@ export function UsuarioTable({ usuarios, onToggleStatus, onEdit }: UsuarioTableP
                 <span className="text-[9px] text-gray-400 font-medium block">Rol</span>
                 <div className="mt-0.5">{getRolBadge(usuario.rol)}</div>
               </div>
-              <div className="col-span-2 flex items-center gap-1.5">
-                <span className="text-[10px] text-gray-400 font-medium">Categoría:</span>
-                <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
-                  {usuario.categoria?.tipoSocio ?? 'Sin categoría'}
-                </span>
+              <div className="col-span-2 flex items-center justify-between gap-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-gray-400 font-medium">Categoría:</span>
+                  <span className="text-[10px] font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
+                    {usuario.categoria?.tipoSocio === 'NO_SOCIO'
+                      ? 'No Socio'
+                      : usuario.categoria?.tipoSocio === 'SOCIO_INTERNO'
+                      ? 'Socio Interno'
+                      : usuario.categoria?.tipoSocio === 'SOCIO_EXTERNO'
+                      ? 'Socio Externo'
+                      : usuario.categoria?.tipoSocio ?? 'Sin categoría'}
+                  </span>
+                </div>
+                {Number(usuario.categoria?.recargo) > 0 ? (
+                  <span className="text-[9px] font-semibold text-amber-600">
+                    +{usuario.categoria?.recargo}% recargo
+                  </span>
+                ) : Number(usuario.categoria?.descuento) > 0 ? (
+                  <span className="text-[9px] font-semibold text-green-600">
+                    -{usuario.categoria?.descuento}% desc.
+                  </span>
+                ) : (
+                  <span className="text-[9px] text-gray-400">Sin descuento</span>
+                )}
               </div>
             </div>
 
@@ -163,9 +182,28 @@ export function UsuarioTable({ usuarios, onToggleStatus, onEdit }: UsuarioTableP
                 </td>
                 <td className="py-2.5 px-3 whitespace-nowrap">{getRolBadge(usuario.rol)}</td>
                 <td className="py-2.5 px-3 whitespace-nowrap">
-                  <span className="text-[10px] font-bold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded">
-                    {usuario.categoria?.tipoSocio ?? '—'}
-                  </span>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span className="text-[10px] font-bold text-gray-700 bg-gray-100 px-1.5 py-0.5 rounded">
+                      {usuario.categoria?.tipoSocio === 'NO_SOCIO'
+                        ? 'No Socio'
+                        : usuario.categoria?.tipoSocio === 'SOCIO_INTERNO'
+                        ? 'Socio Interno'
+                        : usuario.categoria?.tipoSocio === 'SOCIO_EXTERNO'
+                        ? 'Socio Externo'
+                        : usuario.categoria?.tipoSocio ?? '—'}
+                    </span>
+                    {Number(usuario.categoria?.recargo) > 0 ? (
+                      <span className="text-[9px] font-semibold text-amber-600">
+                        +{usuario.categoria?.recargo}% recargo
+                      </span>
+                    ) : Number(usuario.categoria?.descuento) > 0 ? (
+                      <span className="text-[9px] font-semibold text-green-600">
+                        -{usuario.categoria?.descuento}% desc.
+                      </span>
+                    ) : (
+                      <span className="text-[9px] text-gray-400">Sin descuento</span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-2.5 px-3 whitespace-nowrap">{getEstadoBadge(usuario.estado)}</td>
                 <td className="py-2.5 px-3 text-right whitespace-nowrap">

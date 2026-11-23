@@ -22,6 +22,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.List;
 
 @Component
 @RequiredArgsConstructor
@@ -66,6 +67,39 @@ public class DataInitializer implements CommandLineRunner {
 
         // Inicializar lote de usuarios de prueba (socios y no socios, mínimo 23)
         crearUsuariosLotePrueba();
+
+        backfillFechasCreacionReservas();
+    }
+
+    /**
+     * Migración de datos: las reservas creadas antes de incorporar el campo
+     * fechaCreacion quedaron con ese valor nulo. Se les asigna una fecha
+     * determinística (en orden de id) para que el listado pueda ordenarse.
+     */
+    private void backfillFechasCreacionReservas() {
+        List<Reserva> reservas = reservaRepository.findAll();
+        if (reservas.isEmpty()) {
+            return;
+        }
+
+        long maxId = reservas.stream()
+                .mapToLong(Reserva::getIdReserva)
+                .max()
+                .orElse(0L);
+        LocalDateTime base = LocalDateTime.now();
+        boolean huboCambios = false;
+
+        for (Reserva reserva : reservas) {
+            if (reserva.getFechaCreacion() == null) {
+                long minutosDesdeBase = Math.max(0L, maxId - reserva.getIdReserva());
+                reserva.setFechaCreacion(base.minusMinutes(minutosDesdeBase));
+                huboCambios = true;
+            }
+        }
+
+        if (huboCambios) {
+            reservaRepository.saveAll(reservas);
+        }
     }
 
     private void crearRol(String nombre, String descripcion) {

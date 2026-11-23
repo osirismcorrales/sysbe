@@ -16,6 +16,7 @@ public class PagoMapper {
                 .tipoPago(dto.tipoPago())
                 .periodo(dto.periodo())
                 .montoPago(dto.montoPago())
+                .puntosUsados(dto.puntosUsados() != null ? dto.puntosUsados() : 0)
                 .metodoPago(dto.metodoPago())
                 .estadoPago(dto.estadoPago() != null ? dto.estadoPago() : EstadoPago.PENDIENTE)
                 .fechaCreacion(LocalDateTime.now())
@@ -33,10 +34,12 @@ public class PagoMapper {
                 pago.getUsuario() != null ? pago.getUsuario().getIdUsuario() : null,
                 pago.getUsuario() != null ? pago.getUsuario().getDni() : null,
                 pago.getUsuario() != null ? pago.getUsuario().getNombreCompleto() : null,
+                pago.getUsuario() != null ? pago.getUsuario().getPuntosAc() : null,
                 pago.getReserva() != null ? pago.getReserva().getIdReserva() : null,
                 pago.getTipoPago(),
                 pago.getPeriodo(),
                 pago.getMontoPago(),
+                pago.getPuntosUsados() != null ? pago.getPuntosUsados() : 0,
                 pago.getMetodoPago(),
                 pago.getEstadoPago(),
                 pago.getFechaCreacion(),

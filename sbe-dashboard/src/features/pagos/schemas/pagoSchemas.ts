@@ -31,10 +31,9 @@ export const pagoRequestSchema = z
     idReserva: idReservaSchema.optional(),
     periodo: z.string().optional(),
     montoPago: montoSchema,
-    metodoPago: z.enum(
-      ['EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'DEBITO', 'MERCADO_PAGO'],
-      { error: 'El método de pago es obligatorio.' }
-    ),
+    metodoPago: z.enum(['EFECTIVO', 'TRANSFERENCIA'], {
+      error: 'El método de pago es obligatorio.',
+    }),
     estadoPago: z.enum(['PENDIENTE', 'APROBADO'], {
       error: 'El estado inicial es obligatorio.',
     }),

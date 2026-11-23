@@ -175,31 +175,39 @@ export function CambiarCategoriaDialog({
               <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
                 Condiciones de la categoría
               </div>
-              <div className="grid grid-cols-2 gap-3 text-xs">
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs">
-                  <span className="text-gray-400 block text-[11px] font-medium">Cuota mensual</span>
-                  <span className="font-bold text-gray-900 text-sm">
+              <div className="grid grid-cols-3 gap-2 text-xs">
+                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                  <span className="text-gray-400 block text-[10px] font-medium">Cuota mensual</span>
+                  <span className="font-bold text-gray-900 text-xs">
                     {selectedCategoria.cuotaMensual > 0
                       ? `$${selectedCategoria.cuotaMensual.toLocaleString('es-AR')}`
                       : 'Sin costo ($0)'}
                   </span>
                 </div>
 
-                {/* Tarjeta dinámica: Muestra Recargo si es NO_SOCIO o Descuento para los demás */}
-                <div className="bg-white p-2.5 rounded-lg border border-slate-200/60 shadow-2xs">
-                  <span className="text-gray-400 block text-[11px] font-medium">
-                    {esNoSocio ? 'Recargo en reserva' : 'Descuento en reserva'}
-                  </span>
+                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                  <span className="text-gray-400 block text-[10px] font-medium">Descuento</span>
                   <span
-                    className={`font-bold text-sm ${
-                      esNoSocio
-                        ? 'text-amber-600'
-                        : selectedCategoria.descuento > 0
-                        ? 'text-green-600'
-                        : 'text-gray-700'
+                    className={`font-bold text-xs ${
+                      Number(selectedCategoria.descuento) > 0 ? 'text-green-600' : 'text-gray-500'
                     }`}
                   >
-                    {selectedCategoria.descuento}%
+                    {Number(selectedCategoria.descuento) > 0
+                      ? `${selectedCategoria.descuento}%`
+                      : 'Sin descuento'}
+                  </span>
+                </div>
+
+                <div className="bg-white p-2 rounded-lg border border-slate-200/60 shadow-2xs">
+                  <span className="text-gray-400 block text-[10px] font-medium">Recargo</span>
+                  <span
+                    className={`font-bold text-xs ${
+                      Number(selectedCategoria.recargo) > 0 ? 'text-amber-600' : 'text-gray-500'
+                    }`}
+                  >
+                    {Number(selectedCategoria.recargo) > 0
+                      ? `+${selectedCategoria.recargo}%`
+                      : 'Sin recargo'}
                   </span>
                 </div>
 

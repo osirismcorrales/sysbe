@@ -112,7 +112,7 @@ export function usePagos(): UsePagosResult {
     setPage(0);
   }, []);
 
-  // Cargar usuarios para el selector de filtros y el formulario de alta
+  // Cargar usuarios para el selector y actualizar los saldos después de un pago.
   useEffect(() => {
     let cancelled = false;
 
@@ -127,7 +127,7 @@ export function usePagos(): UsePagosResult {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tick]);
 
   // Cargar pagos paginados con filtros del backend
   useEffect(() => {
